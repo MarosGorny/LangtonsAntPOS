@@ -10,13 +10,22 @@ typedef enum backgroundColor {
     BLACK = 1,
 }BACKGROUND_COLOR;
 
+typedef enum direction {
+    NORTH = 0,
+    EAST = 1,
+    SOUTH = 2,
+    WEST = 3,
+}ANT_DIRECTION;
+
 typedef struct ant {
     int id;
     int x;
     int y;
+    ANT_DIRECTION direction;
 }ANT;
 
 void printAntInfo(ANT ant,const int *display, int width);
-const char* getBoxColor(BACKGROUND_COLOR bgColor);
+const char* getBoxColorString(BACKGROUND_COLOR bgColor);
+BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display,int width);
 
 #endif //LANGTONSANTPOS_ANT_H

@@ -12,7 +12,7 @@ int main(int argc,char* argv[]) {
     bool directLogic = false;
 
     if(argc < 2) {
-        areaSize = areaWidth = areaHeight = 11;
+        areaSize = areaWidth = areaHeight = 3;
     } else {
         areaSize = areaWidth = areaHeight = atoi(argv[1]);
     }
@@ -32,7 +32,7 @@ int main(int argc,char* argv[]) {
     printAntInfo(ant, (int *)display, areaWidth);
 
 
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 20; ++i) {
         BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(ant,(int *)display,areaWidth);
         if(antBoxColor == WHITE) {
             display[ant.x][ant.y] = BLACK;
@@ -74,11 +74,15 @@ int main(int argc,char* argv[]) {
             }
             ant.direction = directLogic ?  ((ant.direction + 3) % 4) : ((ant.direction + 1) % 4);
         }
+        if(ant.x >= areaWidth || ant.y >= areaHeight || ant.x < 0 || ant.y < 0) {
+            printf("Ant[%d] is dead\n",ant.id);
+            break;
+        }
         printAntInfo(ant, (int *)display, areaWidth);
     }
 
 
-
+    printBackground((int *)display, areaWidth,areaHeight);
 
     printf("Hello, World!\n");
     return 0;

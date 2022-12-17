@@ -27,5 +27,6 @@ typedef struct ant {
 void printAntInfo(ANT ant,const int *display, int width);
 const char* getBoxColorString(BACKGROUND_COLOR bgColor);
 BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display,int width);
+void printBackground(const int *display, int width,int height);
 
 #endif //LANGTONSANTPOS_ANT_H

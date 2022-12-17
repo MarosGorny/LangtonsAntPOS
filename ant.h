@@ -24,9 +24,10 @@ typedef struct ant {
     ANT_DIRECTION direction;
 }ANT;
 
-void printAntInfo(ANT ant,const int *display, int width);
+void printAntInfo(ANT ant,const int *display, int rows);
 const char* getBoxColorString(BACKGROUND_COLOR bgColor);
-BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display,int width);
-void printBackground(const int *display, int width,int height);
+BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display,int rows);
+const char* getDircetionString(ANT_DIRECTION antDirection);
+void printBackground(const int *display, int rows,int columns);
 
 #endif //LANGTONSANTPOS_ANT_H

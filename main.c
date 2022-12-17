@@ -6,36 +6,51 @@
 
 int main(int argc,char* argv[]) {
 
-    int areaWidth;
-    int areaHeight;
+    // split into frames from wiki
+    // https://ezgif.com/split/ezgif-2-6771e98488.gif
+
+    int columns;
+    int rows;
     int areaSize;
     bool directLogic = false;
 
     if(argc < 2) {
-        areaSize = areaWidth = areaHeight = 3;
+        areaSize = columns = rows = 5;
+    } else if (argc == 2) {
+        areaSize = columns = rows = atoi(argv[1]);
     } else {
-        areaSize = areaWidth = areaHeight = atoi(argv[1]);
+        rows =  atoi(argv[1]);
+        columns = atoi(argv[2]);
     }
 
+    printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
+
     // Creating and initialization of display array
-    BACKGROUND_COLOR display[areaWidth][areaHeight];
-    for (int i = 0; i < areaWidth; i++) {
-        for (int j = 0; j < areaHeight; j++) {
+    BACKGROUND_COLOR display[rows][columns];
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < columns; j++) {
             display[i][j] = WHITE;
         }
     }
 
+    printBackground((int *)display, rows, columns);
+
     // Creating ant
-    ANT ant = {1,areaWidth/2,areaHeight/2,NORTH};
+    ANT ant = {1, columns / 2, rows / 2, NORTH};
 
     // Printing info about ant
-    printAntInfo(ant, (int *)display, areaWidth);
+    printAntInfo(ant, (int *)display, columns);
+    printBackground((int *)display, rows, columns);
 
-
-    for (int i = 0; i < 20; ++i) {
-        BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(ant,(int *)display,areaWidth);
+    printf("loop\n");
+    bool antIsAlive = true;
+    int counter = 0;
+    while (antIsAlive) {
+        counter++;
+        BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(ant, (int *)display, columns);
+        printf("box color %d\n",antBoxColor);
         if(antBoxColor == WHITE) {
-            display[ant.x][ant.y] = BLACK;
+            display[ant.y][ant.x] = BLACK;
             switch (ant.direction) {
                 case NORTH:
                     ant.x += directLogic ? 1:-1;
@@ -55,7 +70,7 @@ int main(int argc,char* argv[]) {
             ant.direction = directLogic ?  ((ant.direction + 1) % 4) : ((ant.direction + 3) % 4);
 
         } else if (antBoxColor == BLACK) {
-            display[ant.x][ant.y] = WHITE;
+            display[ant.y][ant.x] = WHITE;
             switch (ant.direction) {
                 case NORTH:
                     ant.x += directLogic ? -1:1;
@@ -74,17 +89,25 @@ int main(int argc,char* argv[]) {
             }
             ant.direction = directLogic ?  ((ant.direction + 3) % 4) : ((ant.direction + 1) % 4);
         }
-        if(ant.x >= areaWidth || ant.y >= areaHeight || ant.x < 0 || ant.y < 0) {
+
+
+        if(ant.x >= columns || ant.y >= rows || ant.x < 0 || ant.y < 0) {
+            printAntInfo(ant, (int *)display, columns);
             printf("Ant[%d] is dead\n",ant.id);
-            break;
+            printf("Iteration:%d\n",counter);
+            antIsAlive = false;
+        } else {
+            printAntInfo(ant, (int *)display, columns);
         }
-        printAntInfo(ant, (int *)display, areaWidth);
+        if(counter > 1000) {
+            antIsAlive = false;
+            printf("Counter is maxed\n");
+            printf("Iteration:%d\n",counter);
+        }
     }
 
+    printBackground((int *)display, rows, columns);
 
-    printBackground((int *)display, areaWidth,areaHeight);
-
-    printf("Hello, World!\n");
     return 0;
 }
 

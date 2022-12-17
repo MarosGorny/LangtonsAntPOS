@@ -6,13 +6,14 @@
 
 
 
-void printAntInfo(ANT ant,const int* display, int width) {
-    const char* color = getBoxColorString(*(display + (ant.x * width) + ant.y));
-    printf("ANT[%d] = X:%03d Y:%03d COLOR:%s\n",ant.id,ant.x,ant.y, color);
+void printAntInfo(ANT ant,const int* display, int collumns) {
+    const char* color = getBoxColorString(*(display + (ant.y * collumns) + ant.x));
+    const char* direction = getDircetionString(ant.direction);
+    printf("ANT[%d] = X:%03d Y:%03d COLOR:%s DIRECTION:%s\n",ant.id,ant.x,ant.y, color,direction);
 }
 
-BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display, int width) {
-   BACKGROUND_COLOR color = *(display + (ant.x * width) + ant.y);
+BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display, int collumns) {
+   BACKGROUND_COLOR color = *(display + (ant.y * collumns) + ant.x);
 }
 
 
@@ -20,13 +21,31 @@ const char* getBoxColorString(BACKGROUND_COLOR bgColor)
 {
     if(bgColor == WHITE) return "WHITE";
     else if(bgColor == BLACK) return "BLACK";
-    else return "NOT_SET_ERR";
+    else return "BG_NOT_SET_ERR";
 }
 
-void printBackground(const int *display, int width,int height) {
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; ++j) {
-            printf("%d ",(*(display + (j * height) + i)));
+const char* getDircetionString(ANT_DIRECTION antDirection) {
+    switch (antDirection) {
+        case NORTH:
+            return "NORTH";
+        case EAST:
+            return "EAST";
+        case SOUTH:
+            return "SOUTH";
+        case WEST:
+            return "WEST";
+        default:
+            return "DIRECTION_NOT_SET_ERR";
+    }
+}
+
+void printBackground(const int *display, int rows,int columns) {
+    //online checker https://josephpetitti.com/ant
+    printf("WHITE = 0\n");
+    printf("BLACK = 1\n");
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < columns; j++) {
+            printf("%d ",(*(display + (i * columns) + j)));
         }
         printf("\n");
     }

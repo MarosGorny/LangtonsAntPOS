@@ -17,13 +17,18 @@ void* antF(void* arg) {
     bool antIsAlive = true;
     int counter = 0;
 
+
+    printAntInfo(*ant, (const BOX ***) antsDisplay->box );
+    printf("Starting positon\n");
     while (antIsAlive) {
         counter++;
         int antsX = ant->x;
         int antsY = ant->y;
-        BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(*(ant), (int *)antsDisplay->box[antsY][antsX]->color, antsDisplay->width);
+        pthread_mutex_lock(antsDisplay->box[antsY][antsX]->mut);
+        BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(*(ant), (const BOX ***) antsDisplay->box);
         //BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(ant, (int *)displayColors, columns);
         if(antBoxColor == WHITE) {
+            printf("WHITE\n");
             antsDisplay->box[antsY][antsX]->color = BLACK;
             //displayColors[ant.y][ant.x] = BLACK;
             switch (ant->direction) {
@@ -45,6 +50,7 @@ void* antF(void* arg) {
             ant->direction = antsDisplay->directLogic ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
 
         } else if (antBoxColor == BLACK) {
+            //printf("BLACK\n");
             antsDisplay->box[antsY][antsX]->color = WHITE;
             switch (ant->direction) {
                 case NORTH:
@@ -64,21 +70,25 @@ void* antF(void* arg) {
             }
             ant->direction = antsDisplay->directLogic ?  ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
         }
+        //printf("END LOOP\n");
+        //printf("X: %d Y:%d\n",ant->x,ant->y);
 
 
         if(ant->x >= antsDisplay->width || ant->y >= antsDisplay->height || ant->x < 0 || ant->y < 0) {
-            printAntInfo(*ant, (int *)antsDisplay->box[antsY][antsX]->color, antsDisplay->width);
+            //printAntInfo(*ant, (const BOX ***) antsDisplay->box);
             printf("Ant[%d] is dead\n",ant->id);
             printf("Iteration:%d\n",counter);
             antIsAlive = false;
         } else {
-            printAntInfo(*ant, (int *)antsDisplay->box[antsY][antsX]->color , antsDisplay->width);
+            printAntInfo(*ant, (const BOX ***) antsDisplay->box );
         }
         if(counter > 1000) {
             antIsAlive = false;
             printf("Counter is maxed\n");
             printf("Iteration:%d\n",counter);
         }
+        printf("UNLOCK\n");
+        pthread_mutex_unlock(antsDisplay->box[antsY][antsX]->mut);
     }
 
 }
@@ -94,7 +104,7 @@ int main(int argc,char* argv[]) {
     bool directLogic = true;
 
     if(argc < 2) {
-        areaSize = columns = rows = 3;
+        areaSize = columns = rows = 6;
     } else if (argc == 2) {
         areaSize = columns = rows = atoi(argv[1]);
     } else {
@@ -118,7 +128,7 @@ int main(int argc,char* argv[]) {
             //displayColors[i][j] = WHITE;
 
             //boxes
-            BOX* boxData = malloc(sizeof (BOX*));
+            BOX* boxData = malloc(sizeof (BOX));
             display.box[i][j] = boxData;
             boxData->x = j;
             boxData->y = i;
@@ -130,6 +140,7 @@ int main(int argc,char* argv[]) {
 
     pthread_t ants[1];
     ANT antsD[1];
+    printBackground((const BOX ***) display.box, rows, columns);
 
     for (int i = 0; i < 1; i++) {
         antsD[i].id = i+1;
@@ -137,7 +148,10 @@ int main(int argc,char* argv[]) {
         antsD[i].y = rows / 2;
         antsD[i].direction = NORTH;
         antsD[i].display = &display;
+
+        pthread_create(&ants[i],NULL,antF,&antsD[i]);
     }
+    printf("Created ant\n");
 
 
     // Creating ant
@@ -149,24 +163,28 @@ int main(int argc,char* argv[]) {
 
 
 
-
-//    /// CLEANING AND DELETING
-//    for (int i = 0; i < rows; i++) {
-//        for (int j = 0; j < columns; j++) {
-//            //colors
-//            displayColors[i][j] = WHITE;
-//
-//            //boxes
-//            BOX* tempBox = display.box[i][j];
-//            pthread_mutex_destroy(tempBox->mut);
-//            free(tempBox);
-//
-//        }
-//        free(display.box[i]);
-//    }
-//    free(display.box);
+    for (int i = 0; i < 1; i++) {
+        pthread_join(ants[i],NULL);
+    }
 
     printBackground((const BOX ***) display.box, rows, columns);
+
+    /// CLEANING AND DELETING
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < columns; j++) {
+
+            //boxes
+            BOX* tempBox = display.box[i][j];
+            pthread_mutex_destroy(tempBox->mut);
+            free(tempBox);
+
+        }
+        free(display.box[i]);
+    }
+    free(display.box);
+
+
+
     //(int *)antsDisplay->box[antsY][antsX]->color
 
     return 0;

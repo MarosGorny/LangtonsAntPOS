@@ -6,15 +6,27 @@
 
 
 
-void printAntInfo(ANT ant,const int* display, int collumns) {
-    const char* color = getBoxColorString(*(display + (ant.y * collumns) + ant.x));
+
+//void printAntInfo(ANT ant,const int* display, int collumns) {
+//    const char* color = getBoxColorString(*(display + (ant.y * collumns) + ant.x));
+//    const char* direction = getDircetionString(ant.direction);
+//    printf("ANT[%d] = X:%03d Y:%03d COLOR:%s DIRECTION:%s\n",ant.id,ant.x,ant.y, color,direction);
+//}
+
+void printAntInfo(ANT ant,const BOX ***boxes) {
+    const char* color = getBoxColorString(getBoxColorOfAnt(ant,boxes));
     const char* direction = getDircetionString(ant.direction);
     printf("ANT[%d] = X:%03d Y:%03d COLOR:%s DIRECTION:%s\n",ant.id,ant.x,ant.y, color,direction);
 }
 
-BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display, int collumns) {
-   BACKGROUND_COLOR color = *(display + (ant.y * collumns) + ant.x);
+
+BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const BOX ***boxes) {
+    return boxes[ant.y][ant.x]->color;
 }
+
+//BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const int *display, int collumns) {
+//   BACKGROUND_COLOR color = *(display + (ant.y * collumns) + ant.x);
+//}
 
 
 const char* getBoxColorString(BACKGROUND_COLOR bgColor)

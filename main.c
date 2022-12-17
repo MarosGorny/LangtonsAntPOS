@@ -12,7 +12,7 @@ int main(int argc,char* argv[]) {
     int columns;
     int rows;
     int areaSize;
-    bool directLogic = false;
+    bool directLogic = true;
 
     if(argc < 2) {
         areaSize = columns = rows = 5;
@@ -33,22 +33,18 @@ int main(int argc,char* argv[]) {
         }
     }
 
-    printBackground((int *)display, rows, columns);
 
     // Creating ant
     ANT ant = {1, columns / 2, rows / 2, NORTH};
 
     // Printing info about ant
     printAntInfo(ant, (int *)display, columns);
-    printBackground((int *)display, rows, columns);
 
-    printf("loop\n");
     bool antIsAlive = true;
     int counter = 0;
     while (antIsAlive) {
         counter++;
         BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(ant, (int *)display, columns);
-        printf("box color %d\n",antBoxColor);
         if(antBoxColor == WHITE) {
             display[ant.y][ant.x] = BLACK;
             switch (ant.direction) {

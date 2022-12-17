@@ -7,92 +7,6 @@
 #include "display.h"
 
 
-
-
-
-void* antF(void* arg) {
-    ANT* ant = arg;
-    DISPLAY* antsDisplay = ant->display;
-
-    bool antIsAlive = true;
-    int counter = 0;
-
-
-    printAntInfo(*ant, (const BOX ***) antsDisplay->box );
-    printf("Starting positon\n");
-    while (antIsAlive) {
-        counter++;
-        int antsX = ant->x;
-        int antsY = ant->y;
-        pthread_mutex_lock(antsDisplay->box[antsY][antsX]->mut);
-        BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(*(ant), (const BOX ***) antsDisplay->box);
-        //BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(ant, (int *)displayColors, columns);
-        if(antBoxColor == WHITE) {
-            printf("WHITE\n");
-            antsDisplay->box[antsY][antsX]->color = BLACK;
-            //displayColors[ant.y][ant.x] = BLACK;
-            switch (ant->direction) {
-                case NORTH:
-                    ant->x += antsDisplay->directLogic ? 1:-1;
-                    break;
-                case EAST:
-                    ant->y += antsDisplay->directLogic ? 1:-1;
-                    break;
-                case SOUTH:
-                    ant->x += antsDisplay->directLogic ? -1:1;
-                    break;
-                case WEST:
-                    ant->y += antsDisplay->directLogic ? -1:1;
-                    break;
-                default:
-                    fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
-            }
-            ant->direction = antsDisplay->directLogic ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
-
-        } else if (antBoxColor == BLACK) {
-            //printf("BLACK\n");
-            antsDisplay->box[antsY][antsX]->color = WHITE;
-            switch (ant->direction) {
-                case NORTH:
-                    ant->x += antsDisplay->directLogic ? -1:1;
-                    break;
-                case EAST:
-                    ant->y += antsDisplay->directLogic ? -1:1;
-                    break;
-                case SOUTH:
-                    ant->x += antsDisplay->directLogic ? 1:-1;
-                    break;
-                case WEST:
-                    ant->y += antsDisplay->directLogic ? 1:-1;
-                    break;
-                default:
-                    fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
-            }
-            ant->direction = antsDisplay->directLogic ?  ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
-        }
-        //printf("END LOOP\n");
-        //printf("X: %d Y:%d\n",ant->x,ant->y);
-
-
-        if(ant->x >= antsDisplay->width || ant->y >= antsDisplay->height || ant->x < 0 || ant->y < 0) {
-            //printAntInfo(*ant, (const BOX ***) antsDisplay->box);
-            printf("Ant[%d] is dead\n",ant->id);
-            printf("Iteration:%d\n",counter);
-            antIsAlive = false;
-        } else {
-            printAntInfo(*ant, (const BOX ***) antsDisplay->box );
-        }
-        if(counter > 1000) {
-            antIsAlive = false;
-            printf("Counter is maxed\n");
-            printf("Iteration:%d\n",counter);
-        }
-        printf("UNLOCK\n");
-        pthread_mutex_unlock(antsDisplay->box[antsY][antsX]->mut);
-    }
-
-}
-
 int main(int argc,char* argv[]) {
 
     // split into frames from wiki
@@ -100,13 +14,15 @@ int main(int argc,char* argv[]) {
 
     int columns;
     int rows;
-    int areaSize;
+    //int areaSize;
+
     bool directLogic = true;
+    const int numberOfAnts = 1;
 
     if(argc < 2) {
-        areaSize = columns = rows = 6;
+        columns = rows = 3;
     } else if (argc == 2) {
-        areaSize = columns = rows = atoi(argv[1]);
+        columns = rows = atoi(argv[1]);
     } else {
         rows =  atoi(argv[1]);
         columns = atoi(argv[2]);
@@ -115,34 +31,47 @@ int main(int argc,char* argv[]) {
     printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
 
 
-    // Creating and initialization of displayColors array
-    //BACKGROUND_COLOR displayColors[rows][columns];
 
-    DISPLAY display = {columns, rows, directLogic=true};
+    //Creating display
+    DISPLAY display = {columns, rows, directLogic=directLogic};
+    //Creating 2D dynamic array of boxes , pointer of pointers
     display.box = malloc(rows*sizeof (BOX**));
 
+    //Creating mutexes
+    pthread_mutex_t boxMutexes[rows][columns];
+
+    //Initialization of boxes and creating
     for (int i = 0; i < rows; i++) {
+        //Creating ROWS of boxes
         display.box[i] = malloc(columns*sizeof (BOX*));
         for (int j = 0; j < columns; j++) {
-            //colors
-            //displayColors[i][j] = WHITE;
 
-            //boxes
+            //***BOXES***
+            //Creating box
             BOX* boxData = malloc(sizeof (BOX));
+            //Assigning box to position [i][j]
             display.box[i][j] = boxData;
+
+            //Initialization of box
             boxData->x = j;
             boxData->y = i;
             boxData->color = WHITE;
-            pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
-            boxData->mut = &mut;
+
+            //Mutex initialization and assignation to boxData
+            boxMutexes[i][j] = PTHREAD_MUTEX_INITIALIZER;
+            boxData->mut = &boxMutexes[i][j];
         }
     }
 
-    pthread_t ants[1];
-    ANT antsD[1];
+    //pthreads of ants
+    pthread_t ants[numberOfAnts];
+    //data of ants
+    ANT antsD[numberOfAnts];
+
+    //Prints background
     printBackground((const BOX ***) display.box, rows, columns);
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < numberOfAnts; i++) {
         antsD[i].id = i+1;
         antsD[i].x = columns /2;
         antsD[i].y = rows / 2;
@@ -150,42 +79,31 @@ int main(int argc,char* argv[]) {
         antsD[i].display = &display;
 
         pthread_create(&ants[i],NULL,antF,&antsD[i]);
+        printf("Created ant[%d]\n",i+1);
     }
-    printf("Created ant\n");
 
-
-    // Creating ant
-    //ANT ant = {1, columns / 2, rows / 2, NORTH};
-
-    // Printing info about ant
-    //printAntInfo(antsD[1], (int *)displayColors, columns);
-
-
-
-
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < numberOfAnts; i++) {
         pthread_join(ants[i],NULL);
     }
 
+    //Prints background
     printBackground((const BOX ***) display.box, rows, columns);
 
     /// CLEANING AND DELETING
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < columns; j++) {
-
-            //boxes
+            //Get tempBox
             BOX* tempBox = display.box[i][j];
+            //Destroy mutex
             pthread_mutex_destroy(tempBox->mut);
+            //Destroy box
             free(tempBox);
-
         }
+        //Destroy rows
         free(display.box[i]);
     }
+    //Destroy whole 2Darray
     free(display.box);
-
-
-
-    //(int *)antsDisplay->box[antsY][antsX]->color
 
     return 0;
 }

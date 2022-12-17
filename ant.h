@@ -23,7 +23,7 @@ typedef struct ant {
     DISPLAY* display;
 }ANT;
 
-
+void* antF(void* arg);
 void printAntInfo(ANT ant,const BOX ***boxes);
 BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const BOX ***boxes);
 const char* getBoxColorString(BACKGROUND_COLOR bgColor);

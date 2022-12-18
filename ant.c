@@ -19,7 +19,7 @@ void* antF(void* arg) {
         int antsOrgX = ant->x;
         int antsOrgY = ant->y;
         printf("Ant[%d] waiting for barrier org[%d]\n",ant->id,antsDisplay->actualNumberOfAnts);
-        pthread_barrier_t originalBarrier = ant->display->mainBarrier;
+        pthread_barrier_t* originalBarrier = ant->display->mainBarrier;
         pthread_barrier_wait(originalBarrier);
 
         //printf("Ant[%d] TryLock\n",ant->id);

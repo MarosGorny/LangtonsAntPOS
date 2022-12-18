@@ -86,7 +86,7 @@ int main(int argc,char* argv[]) {
 
 
             //Mutex initialization and assignation to boxData
-            boxMutexes[i][j] = PTHREAD_MUTEX_INITIALIZER;
+            boxMutexes[i][j] = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
             boxData->mut = &boxMutexes[i][j];
         }
     }

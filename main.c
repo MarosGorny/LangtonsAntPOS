@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <time.h>
 
 #include "ant.h"
 #include "display.h"
@@ -15,10 +16,11 @@ int main(int argc,char* argv[]) {
     int rows;
 
     bool directLogic = false;
-    const int numberOfAnts = 3;
+    bool randomBlackBoxes = true;
+    const int numberOfAnts = 1;
 
     if(argc < 2) {
-        columns = rows = 3;
+        columns = rows = 5;
     } else if (argc == 2) {
         columns = rows = atoi(argv[1]);
     } else {
@@ -46,6 +48,14 @@ int main(int argc,char* argv[]) {
     //Creating mutexes
     pthread_mutex_t boxMutexes[rows][columns];
 
+    //Randomness of black boxes
+    srand(time(NULL));
+    int randomnessGeneral = rand() % 100;
+    if(randomBlackBoxes) {
+        printf("Chance of black box: %d %%\n",randomnessGeneral);
+    }
+
+
     //Initialization of boxes and creating
     for (int i = 0; i < rows; i++) {
         //Creating ROWS of boxes
@@ -61,7 +71,19 @@ int main(int argc,char* argv[]) {
             //Initialization of box
             boxData->x = j;
             boxData->y = i;
-            boxData->color = WHITE;
+
+            if(randomBlackBoxes) {
+                int randomnessBox = rand() % 100;
+                if(randomnessBox < randomnessGeneral) {
+                    boxData->color = BLACK;
+                } else {
+                    boxData->color = WHITE;
+                }
+            } else {
+                boxData->color = WHITE;
+            }
+
+
 
             //Mutex initialization and assignation to boxData
             boxMutexes[i][j] = PTHREAD_MUTEX_INITIALIZER;

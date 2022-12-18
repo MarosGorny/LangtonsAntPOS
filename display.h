@@ -24,12 +24,16 @@ typedef struct box{
 typedef struct display{
     int width;
     int height;
+    int actualNumberOfAnts;
+
+    pthread_barrier_t* barriers;
+    pthread_barrier_t* mainBarrier;
+    pthread_mutex_t* mut;
 
     bool directLogic;
     BOX*** box;
 }DISPLAY;
 
-//void printBackground(const int *display, int rows,int columns);
 void printBackground(const BOX ***boxes, int rows,int columns);
 
 #endif //LANGTONSANTPOS_DISPLAY_H

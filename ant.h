@@ -20,6 +20,7 @@ typedef struct ant {
     int y;
     ANT_DIRECTION direction;
 
+
     DISPLAY* display;
 }ANT;
 

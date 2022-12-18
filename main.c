@@ -6,7 +6,6 @@
 #include "ant.h"
 #include "display.h"
 
-
 int main(int argc,char* argv[]) {
 
     // split into frames from wiki
@@ -14,10 +13,9 @@ int main(int argc,char* argv[]) {
 
     int columns;
     int rows;
-    //int areaSize;
 
-    bool directLogic = true;
-    const int numberOfAnts = 1;
+    bool directLogic = false;
+    const int numberOfAnts = 3;
 
     if(argc < 2) {
         columns = rows = 3;
@@ -29,11 +27,19 @@ int main(int argc,char* argv[]) {
     }
 
     printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
+    pthread_mutex_t mainMut = PTHREAD_MUTEX_INITIALIZER;
 
+
+    //Creating barrier
+    pthread_barrier_t barriers[numberOfAnts];
+    for (int i = 0; i < numberOfAnts; i++) {
+        pthread_barrier_init(&barriers[i], NULL, i+1);
+    }
 
 
     //Creating display
-    DISPLAY display = {columns, rows, directLogic=directLogic};
+    DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, directLogic=directLogic};
+
     //Creating 2D dynamic array of boxes , pointer of pointers
     display.box = malloc(rows*sizeof (BOX**));
 
@@ -73,9 +79,19 @@ int main(int argc,char* argv[]) {
 
     for (int i = 0; i < numberOfAnts; i++) {
         antsD[i].id = i+1;
-        antsD[i].x = columns /2;
-        antsD[i].y = rows / 2;
-        antsD[i].direction = NORTH;
+        if(i == 1) {
+            antsD[i].direction = EAST;
+            antsD[i].x = 2;
+            antsD[i].y = 0;
+        } else if(i == 0){
+            antsD[i].direction = NORTH;
+            antsD[i].x = columns /2;
+            antsD[i].y = rows / 2;
+        } else {
+            antsD[i].direction = EAST;
+            antsD[i].x = 0;
+            antsD[i].y = 0;
+        }
         antsD[i].display = &display;
 
         pthread_create(&ants[i],NULL,antF,&antsD[i]);
@@ -104,6 +120,14 @@ int main(int argc,char* argv[]) {
     }
     //Destroy whole 2Darray
     free(display.box);
+
+    //pthread_barrier_destroy(barriers);
+    pthread_mutex_destroy(&mainMut);
+
+    //Destroying barrier
+    for (int i = 0; i < numberOfAnts; i++) {
+        pthread_barrier_destroy(&barriers[i]);
+    }
 
     return 0;
 }

@@ -11,78 +11,105 @@ void* antF(void* arg) {
     bool antIsAlive = true;
     int counter = 0;
 
-
     printAntInfo(*ant, (const BOX ***) antsDisplay->box );
     printf("Starting positon\n");
+
     while (antIsAlive) {
         counter++;
-        int antsX = ant->x;
-        int antsY = ant->y;
-        pthread_mutex_lock(antsDisplay->box[antsY][antsX]->mut);
-        BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(*(ant), (const BOX ***) antsDisplay->box);
-        //BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(ant, (int *)displayColors, columns);
-        if(antBoxColor == WHITE) {
-            printf("WHITE\n");
-            antsDisplay->box[antsY][antsX]->color = BLACK;
-            //displayColors[ant.y][ant.x] = BLACK;
-            switch (ant->direction) {
-                case NORTH:
-                    ant->x += antsDisplay->directLogic ? 1:-1;
-                    break;
-                case EAST:
-                    ant->y += antsDisplay->directLogic ? 1:-1;
-                    break;
-                case SOUTH:
-                    ant->x += antsDisplay->directLogic ? -1:1;
-                    break;
-                case WEST:
-                    ant->y += antsDisplay->directLogic ? -1:1;
-                    break;
-                default:
-                    fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
+        int antsOrgX = ant->x;
+        int antsOrgY = ant->y;
+        printf("Ant[%d] waiting for barrier org[%d]\n",ant->id,antsDisplay->actualNumberOfAnts);
+        pthread_barrier_t originalBarrier = ant->display->mainBarrier;
+        pthread_barrier_wait(originalBarrier);
+
+        //printf("Ant[%d] TryLock\n",ant->id);
+        if(pthread_mutex_trylock(antsDisplay->box[antsOrgY][antsOrgX]->mut) == 0) {
+
+            BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(*(ant), (const BOX ***) antsDisplay->box);
+            if(antBoxColor == WHITE) {
+                //printf("WHITE\n");
+                antsDisplay->box[antsOrgY][antsOrgX]->color = BLACK;
+                switch (ant->direction) {
+                    case NORTH:
+                        ant->x += antsDisplay->directLogic ? 1:-1;
+                        break;
+                    case EAST:
+                        ant->y += antsDisplay->directLogic ? 1:-1;
+                        break;
+                    case SOUTH:
+                        ant->x += antsDisplay->directLogic ? -1:1;
+                        break;
+                    case WEST:
+                        ant->y += antsDisplay->directLogic ? -1:1;
+                        break;
+                    default:
+                        fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
+                }
+                ant->direction = antsDisplay->directLogic ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
+
+            } else if (antBoxColor == BLACK) {
+                //printf("BLACK\n");
+                antsDisplay->box[antsOrgY][antsOrgX]->color = WHITE;
+                switch (ant->direction) {
+                    case NORTH:
+                        ant->x += antsDisplay->directLogic ? -1:1;
+                        break;
+                    case EAST:
+                        ant->y += antsDisplay->directLogic ? -1:1;
+                        break;
+                    case SOUTH:
+                        ant->x += antsDisplay->directLogic ? 1:-1;
+                        break;
+                    case WEST:
+                        ant->y += antsDisplay->directLogic ? 1:-1;
+                        break;
+                    default:
+                        fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
+                }
+                ant->direction = antsDisplay->directLogic ?  ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
             }
-            ant->direction = antsDisplay->directLogic ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
+            //printf("END LOOP\n");
 
-        } else if (antBoxColor == BLACK) {
-            //printf("BLACK\n");
-            antsDisplay->box[antsY][antsX]->color = WHITE;
-            switch (ant->direction) {
-                case NORTH:
-                    ant->x += antsDisplay->directLogic ? -1:1;
-                    break;
-                case EAST:
-                    ant->y += antsDisplay->directLogic ? -1:1;
-                    break;
-                case SOUTH:
-                    ant->x += antsDisplay->directLogic ? 1:-1;
-                    break;
-                case WEST:
-                    ant->y += antsDisplay->directLogic ? 1:-1;
-                    break;
-                default:
-                    fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
+            if(ant->x >= antsDisplay->width || ant->y >= antsDisplay->height || ant->x < 0 || ant->y < 0) {
+                printf("Ant[%d] - last position X: %d Y:%d\n",ant->id,ant->x,ant->y);
+                printf("Ant[%d] is dead. After %d iterations\n",ant->id,counter);
+                pthread_mutex_lock(antsDisplay->mut);
+                //printf("Ant[%d] LOCKED MAIN MUT OUTSIDE\n",ant->id);
+                antsDisplay->actualNumberOfAnts--;
+                printf("Numbers of ants decremented by 1\n");
+                antsDisplay->mainBarrier = &antsDisplay->barriers[antsDisplay->actualNumberOfAnts-1];
+                pthread_mutex_unlock(antsDisplay->mut);
+                //printf("Ant[%d] UNLOCKED MAIN MUT OUTSIDE\n",ant->id);
+                antIsAlive = false;
+            } else {
+                printAntInfo(*ant, (const BOX ***) antsDisplay->box );
             }
-            ant->direction = antsDisplay->directLogic ?  ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
-        }
-        //printf("END LOOP\n");
-        //printf("X: %d Y:%d\n",ant->x,ant->y);
+            if(counter > 1000) {
+                antIsAlive = false;
+                printf("Counter is maxed\n");
+                printf("Iteration:%d\n",counter);
+            }
+            //printf("Ant[%d] sleeping\n",ant->id);
+            //printf("Ant[%d] unlock\n",ant->id);
+            pthread_mutex_unlock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+            //printf("After unlock\n");
 
-
-        if(ant->x >= antsDisplay->width || ant->y >= antsDisplay->height || ant->x < 0 || ant->y < 0) {
-            //printAntInfo(*ant, (const BOX ***) antsDisplay->box);
-            printf("Ant[%d] is dead\n",ant->id);
-            printf("Iteration:%d\n",counter);
-            antIsAlive = false;
         } else {
-            printAntInfo(*ant, (const BOX ***) antsDisplay->box );
-        }
-        if(counter > 1000) {
+            printf("Ant[%d] has a collision on X:%d Y:%d\n",ant->id,ant->x,ant->y);
+            printf("Ant[%d] is dead. After %d iterations\n",ant->id,counter);
+            pthread_mutex_lock(antsDisplay->mut);
+            //printf("Ant[%d] LOCKED MAIN MUT COLL\n",ant->id);
+            antsDisplay->actualNumberOfAnts--;
+            printf("Numbers of ants decremented by 1\n");
+            antsDisplay->mainBarrier = &antsDisplay->barriers[antsDisplay->actualNumberOfAnts-1];
+            pthread_mutex_unlock(antsDisplay->mut);
+            //printf("Ant[%d] UNLOCKED MAIN MUT COLL\n",ant->id);
             antIsAlive = false;
-            printf("Counter is maxed\n");
-            printf("Iteration:%d\n",counter);
         }
-        printf("UNLOCK\n");
-        pthread_mutex_unlock(antsDisplay->box[antsY][antsX]->mut);
+        printf("Ant[%d] waiting for barrier second[%d]\n",ant->id,antsDisplay->actualNumberOfAnts);
+        pthread_barrier_wait(originalBarrier);
+        printf("\n");
+
     }
 
 }

@@ -2,6 +2,7 @@
 // Created by Maroš Gorný on 16. 12. 2022.
 //
 #include <stdio.h>
+#include <malloc.h>
 #include "ant.h"
 
 void* antF(void* arg) {
@@ -15,6 +16,7 @@ void* antF(void* arg) {
     printf("Starting positon\n");
 
     while (antIsAlive) {
+
         counter++;
         int antsOrgX = ant->x;
         int antsOrgY = ant->y;
@@ -111,6 +113,10 @@ void* antF(void* arg) {
         printf("\n");
 
     }
+
+    int *counterRet = malloc(sizeof (int));
+    *counterRet = 1;
+    pthread_exit(counterRet);
 
 }
 

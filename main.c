@@ -7,7 +7,12 @@
 #include "ant.h"
 #include "display.h"
 
+
+
+
+
 int main(int argc,char* argv[]) {
+
 
     // split into frames from wiki
     // https://ezgif.com/split/ezgif-2-6771e98488.gif
@@ -120,12 +125,52 @@ int main(int argc,char* argv[]) {
         printf("Created ant[%d]\n",i+1);
     }
 
+    void *counter = 0;
+    int counterOfFinishedAnts = 0;
+    printf("1111111111111111111\n");
+
     for (int i = 0; i < numberOfAnts; i++) {
-        pthread_join(ants[i],NULL);
+        //printf("22222222222222222\n");
+        pthread_join(ants[i],&counter);
+        counterOfFinishedAnts += *((int*)counter);
+        free(counter);
     }
+    //printf("333333333333333333333333333333333\n");
+    printf("FINISHED ANTS %d\n",counterOfFinishedAnts);
 
     //Prints background
     printBackground((const BOX ***) display.box, rows, columns);
+
+    //time and filename
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    char fileNameString[50];
+    sprintf(fileNameString, "../txtFiles/writedFile_%02dhod_%02dmin.txt", tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
+
+
+    //Writing to file
+    FILE *fptr;
+
+    //fptr = fopen("../txtFiles/writedFile-.txt","w");
+    fptr = fopen(fileNameString,"w");
+
+    if(fptr == NULL) {
+        printf("Error writing\n");
+    } else {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                //Get tempBox
+                if (display.box[i][j]->color == WHITE) {
+                    fprintf(fptr,"0");
+                } else if (display.box[i][j]->color == BLACK) {
+                    fprintf(fptr,"1");
+                } else {
+                    fprintf(fptr,"X");
+                };
+            }
+            fprintf(fptr,"\n");
+        }
+    }
 
     /// CLEANING AND DELETING
     for (int i = 0; i < rows; i++) {
@@ -150,6 +195,8 @@ int main(int argc,char* argv[]) {
     for (int i = 0; i < numberOfAnts; i++) {
         pthread_barrier_destroy(&barriers[i]);
     }
+
+
 
     return 0;
 }

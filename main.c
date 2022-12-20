@@ -145,7 +145,7 @@ int main(int argc,char* argv[]) {
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     char fileNameString[50];
-    sprintf(fileNameString, "../txtFiles/writedFile_%02dhod_%02dmin.txt", tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
+    sprintf(fileNameString, "../txtFiles/writedFile_%02dhod_%02dmin.txt", tm.tm_hour, tm.tm_min);
 
 
     //Writing to file

@@ -4,18 +4,27 @@
 #include <pthread.h>
 #include <time.h>
 #include <string.h>
+
 #include "ant.h"
 #include "display.h"
+#include "settings.h"
+
 int main(int argc,char* argv[]) {
     // split into frames from wiki
     // https://ezgif.com/split/ezgif-2-6771e98488.gif
+
     int columns;
     int rows;
     bool directLogic = false;
     bool randomBlackBoxes = false;
     bool readFile = false;
     bool selectBlackBox = false;
-    const int numberOfAnts = 1;
+    int numberOfAnts;
+    FILE *fptrRead;
+
+    LOADING_TYPE loadingType;
+    LOGIC_TYPE logicType;
+
     char buffer[100];
     char* ptr;
     long longTempValue;
@@ -29,88 +38,16 @@ int main(int argc,char* argv[]) {
         columns = atoi(argv[2]);
     }
 
-    bool uncorrectSelection = true;
+    loadingType = setLoadingType();
+    logicType = setLogicType();
+    numberOfAnts = setNumberOfAnts();
 
-    while(uncorrectSelection) {
-        printf("\nHow do you want start simulation? [write number and press enter]\n");
-        printf("1: All squares are white.\n");
-        printf("2: Square color is random.\n");
-        printf("3: Select black squares through the terminal input.\n");
-        printf("4: Load dimension and squares colors from file.\n");
-        printf("Q: Quit simulation\n");
-        scanf("%s",buffer);
-
-        switch (buffer[0]) {
-            case '1':
-                printf("All squares are white.\n");
-                uncorrectSelection = false;
-                break;
-            case'2':
-                printf("Square color is random.\n");
-                uncorrectSelection = false;
-                randomBlackBoxes = true;
-                break;
-            case'3':
-                printf("Select black square through the terminal input.\n");
-                uncorrectSelection = false;
-                selectBlackBox = true;
-                break;
-            case'4':
-                printf("Load dimension and squares color from file.\n");
-                uncorrectSelection = false;
-                readFile = true;
-                break;
-            case'Q':
-            case'q':
-                printf("Closing simulation...\n");
-                break;
-            default:
-                printf("Selection is unknown. Try again please.\n");
-                break;
-        }
+    if(loadingType == FILE_INPUT ) {
+        getNumberRowsCollumns(fptrRead,&rows,&columns);
     }
 
-    uncorrectSelection = true;
-    while(uncorrectSelection) {
-        printf("\nWhich logic of ants do you want? [write number and press enter]\n");
-        printf("1: Direct logic.\n");
-        printf("2: Inverted logic.\n");
-        printf("Q: Quit simulation\n");
-        scanf("%s",buffer);
-
-        switch (buffer[0]) {
-            case '1':
-                printf("Logic of ants is direct.\n");
-                uncorrectSelection = false;
-                directLogic = true;
-                break;
-            case '2':
-                printf("Logic of ants is inverted.\n");
-                uncorrectSelection = false;
-                directLogic = false;
-                break;
-            case'q':
-            case'Q':
-                printf("Closing simulation...\n");
-                break;
-            default:
-                printf("Selection is unknown. Try again please.\n");
-                break;
-        }
-    }
-
-
-
-    FILE *fptrRead;
-    if(readFile) {
-        if ((fptrRead = fopen("../txtFiles/test.txt","r")) == NULL){
-            printf("Error! opening file");
-        } else {
-            fscanf(fptrRead,"%d", &rows);
-            fscanf(fptrRead,"%d", &columns);
-        }
-    }
     printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
+
     pthread_mutex_t mainMut = PTHREAD_MUTEX_INITIALIZER;
     //Creating barrier
     pthread_barrier_t barriers[numberOfAnts];
@@ -123,15 +60,13 @@ int main(int argc,char* argv[]) {
     display.box = malloc(rows*sizeof (BOX**));
     //Creating mutexes
     pthread_mutex_t boxMutexes[rows][columns];
+
     //Randomness of black boxes
-    int randomnessGeneral;
-    if (!readFile) {
-        srand(time(NULL));
-        randomnessGeneral = rand() % 100;
-        if(randomBlackBoxes) {
-            printf("Chance of black box: %d %%\n",randomnessGeneral);
-        }
+    int chanceOfBlackBox;
+    if (loadingType == RANDOM_COLOR) {
+        chanceOfBlackBox = getChanceOfBlackBox();
     }
+
     //Initialization of boxes and creating
     for (int i = 0; i < rows; i++) {
         //Creating ROWS of boxes
@@ -145,6 +80,7 @@ int main(int argc,char* argv[]) {
             //Initialization of box
             boxData->x = j;
             boxData->y = i;
+            //TODO INIT BOX DATA FUNCTION
             if(readFile) {
                 int tempColorBox;
                 if((tempColorBox = fgetc(fptrRead)) != EOF) {
@@ -161,7 +97,7 @@ int main(int argc,char* argv[]) {
             } else {
                 if(randomBlackBoxes) {
                     int randomnessBox = rand() % 100;
-                    if(randomnessBox < randomnessGeneral) {
+                    if(randomnessBox < chanceOfBlackBox) {
                         boxData->color = BLACK;
                     } else {
                         boxData->color = WHITE;

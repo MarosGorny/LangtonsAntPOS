@@ -3,10 +3,9 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <time.h>
+#include <string.h>
 #include "ant.h"
 #include "display.h"
-
-
 int main(int argc,char* argv[]) {
     // split into frames from wiki
     // https://ezgif.com/split/ezgif-2-6771e98488.gif
@@ -14,7 +13,8 @@ int main(int argc,char* argv[]) {
     int rows;
     bool directLogic = false;
     bool randomBlackBoxes = true;
-    bool readFile = true;
+    bool readFile = false;
+    bool selectBlackBox = true;
     const int numberOfAnts = 1;
     if(argc < 2) {
         columns = rows = 5;
@@ -100,6 +100,32 @@ int main(int argc,char* argv[]) {
     }
     if(readFile) {
         fclose(fptrRead);
+    }
+    if(selectBlackBox) {
+        char buffer[100];
+        char* ptr;
+        bool continueReadInput = true;
+        printf("To add black BOX, enter X and Y of black box\n");
+        printf("If you want to quit selecting black boxes, write 'Q'\n");
+        while(true) {
+            int x;
+            int y;
+            long tempValue;
+            printf("X: ");
+            scanf("%s",buffer);
+            if (buffer[0] == 'Q')
+                break;
+            tempValue = strtol(buffer, &ptr, 10);
+            x = (int)tempValue;
+            printf("Y: ");
+            scanf("%s",buffer);
+            if (buffer[0] == 'Q')
+                break;
+            tempValue = strtol(buffer, &ptr, 10);
+            y = (int)tempValue;
+            display.box[x][y]->color = BLACK;
+            printBackground((const BOX ***) display.box, rows, columns);
+        }
     }
     //pthreads of ants
     pthread_t ants[numberOfAnts];

@@ -32,7 +32,7 @@ int main(int argc,char* argv[]) {
     bool uncorrectSelection = true;
 
     while(uncorrectSelection) {
-        printf("How do you want start simulation? [write number and press enter]\n");
+        printf("\nHow do you want start simulation? [write number and press enter]\n");
         printf("1: All squares are white.\n");
         printf("2: Square color is random.\n");
         printf("3: Select black squares through the terminal input.\n");
@@ -65,16 +65,41 @@ int main(int argc,char* argv[]) {
                 printf("Closing simulation...\n");
                 break;
             default:
-                printf("Selection is unknown. Try again please.\n\n");
+                printf("Selection is unknown. Try again please.\n");
                 break;
         }
     }
 
-//    if (buffer[0] == 'Q')
-//        break;
-//    //longTempValue = strtol(buffer, &ptr, 10);
-//    x = (int)longTempValue;
-//
+    uncorrectSelection = true;
+    while(uncorrectSelection) {
+        printf("\nWhich logic of ants do you want? [write number and press enter]\n");
+        printf("1: Direct logic.\n");
+        printf("2: Inverted logic.\n");
+        printf("Q: Quit simulation\n");
+        scanf("%s",buffer);
+
+        switch (buffer[0]) {
+            case '1':
+                printf("Logic of ants is direct.\n");
+                uncorrectSelection = false;
+                directLogic = true;
+                break;
+            case '2':
+                printf("Logic of ants is inverted.\n");
+                uncorrectSelection = false;
+                directLogic = false;
+                break;
+            case'q':
+            case'Q':
+                printf("Closing simulation...\n");
+                break;
+            default:
+                printf("Selection is unknown. Try again please.\n");
+                break;
+        }
+    }
+
+
 
     FILE *fptrRead;
     if(readFile) {

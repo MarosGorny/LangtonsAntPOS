@@ -12,10 +12,14 @@ int main(int argc,char* argv[]) {
     int columns;
     int rows;
     bool directLogic = false;
-    bool randomBlackBoxes = true;
+    bool randomBlackBoxes = false;
     bool readFile = false;
-    bool selectBlackBox = true;
+    bool selectBlackBox = false;
     const int numberOfAnts = 1;
+    char buffer[100];
+    char* ptr;
+    long longTempValue;
+
     if(argc < 2) {
         columns = rows = 5;
     } else if (argc == 2) {
@@ -24,6 +28,54 @@ int main(int argc,char* argv[]) {
         rows =  atoi(argv[1]);
         columns = atoi(argv[2]);
     }
+
+    bool uncorrectSelection = true;
+
+    while(uncorrectSelection) {
+        printf("How do you want start simulation? [write number and press enter]\n");
+        printf("1: All squares are white.\n");
+        printf("2: Square color is random.\n");
+        printf("3: Select black squares through the terminal input.\n");
+        printf("4: Load dimension and squares colors from file.\n");
+        printf("Q: Quit simulation\n");
+        scanf("%s",buffer);
+
+        switch (buffer[0]) {
+            case '1':
+                printf("All squares are white.\n");
+                uncorrectSelection = false;
+                break;
+            case'2':
+                printf("Square color is random.\n");
+                uncorrectSelection = false;
+                randomBlackBoxes = true;
+                break;
+            case'3':
+                printf("Select black square through the terminal input.\n");
+                uncorrectSelection = false;
+                selectBlackBox = true;
+                break;
+            case'4':
+                printf("Load dimension and squares color from file.\n");
+                uncorrectSelection = false;
+                readFile = true;
+                break;
+            case'Q':
+            case'q':
+                printf("Closing simulation...\n");
+                break;
+            default:
+                printf("Selection is unknown. Try again please.\n\n");
+                break;
+        }
+    }
+
+//    if (buffer[0] == 'Q')
+//        break;
+//    //longTempValue = strtol(buffer, &ptr, 10);
+//    x = (int)longTempValue;
+//
+
     FILE *fptrRead;
     if(readFile) {
         if ((fptrRead = fopen("../txtFiles/test.txt","r")) == NULL){
@@ -102,27 +154,25 @@ int main(int argc,char* argv[]) {
         fclose(fptrRead);
     }
     if(selectBlackBox) {
-        char buffer[100];
-        char* ptr;
+
         bool continueReadInput = true;
         printf("To add black BOX, enter X and Y of black box\n");
         printf("If you want to quit selecting black boxes, write 'Q'\n");
         while(true) {
             int x;
             int y;
-            long tempValue;
             printf("X: ");
             scanf("%s",buffer);
             if (buffer[0] == 'Q')
                 break;
-            tempValue = strtol(buffer, &ptr, 10);
-            x = (int)tempValue;
+            longTempValue = strtol(buffer, &ptr, 10);
+            x = (int)longTempValue;
             printf("Y: ");
             scanf("%s",buffer);
             if (buffer[0] == 'Q')
                 break;
-            tempValue = strtol(buffer, &ptr, 10);
-            y = (int)tempValue;
+            longTempValue = strtol(buffer, &ptr, 10);
+            y = (int)longTempValue;
             display.box[x][y]->color = BLACK;
             printBackground((const BOX ***) display.box, rows, columns);
         }

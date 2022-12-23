@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <pthread.h>
 #include <time.h>
 #include <string.h>
@@ -15,19 +14,11 @@ int main(int argc,char* argv[]) {
 
     int columns;
     int rows;
-    bool directLogic = false;
-    bool randomBlackBoxes = false;
-    bool readFile = false;
-    bool selectBlackBox = false;
     int numberOfAnts;
     FILE *fptrRead;
 
     LOADING_TYPE loadingType;
     LOGIC_TYPE logicType;
-
-    char buffer[100];
-    char* ptr;
-    long longTempValue;
 
     if(argc < 2) {
         columns = rows = 5;
@@ -45,7 +36,6 @@ int main(int argc,char* argv[]) {
     if(loadingType == FILE_INPUT ) {
         getNumberRowsCollumns(fptrRead,&rows,&columns);
     }
-
     printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
 
     pthread_mutex_t mainMut = PTHREAD_MUTEX_INITIALIZER;
@@ -54,8 +44,9 @@ int main(int argc,char* argv[]) {
     for (int i = 0; i < numberOfAnts; i++) {
         pthread_barrier_init(&barriers[i], NULL, i+1);
     }
+    printf("Barrier\n");
     //Creating display
-    DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, directLogic=directLogic};
+    DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType};
     //Creating 2D dynamic array of boxes , pointer of pointers
     display.box = malloc(rows*sizeof (BOX**));
     //Creating mutexes
@@ -67,7 +58,15 @@ int main(int argc,char* argv[]) {
         chanceOfBlackBox = getChanceOfBlackBox();
     }
 
+    if(loadingType == FILE_INPUT) {
+        int temp;
+        fptrRead = fopen("../txtFiles/test.txt","r");
+        fscanf(fptrRead,"%d", &temp);
+        fscanf(fptrRead,"%d", &temp);
+    }
+
     //Initialization of boxes and creating
+
     for (int i = 0; i < rows; i++) {
         //Creating ROWS of boxes
         display.box[i] = malloc(columns*sizeof (BOX*));
@@ -80,70 +79,44 @@ int main(int argc,char* argv[]) {
             //Initialization of box
             boxData->x = j;
             boxData->y = i;
-            //TODO INIT BOX DATA FUNCTION
-            if(readFile) {
-                int tempColorBox;
-                if((tempColorBox = fgetc(fptrRead)) != EOF) {
-                    while (tempColorBox == 13 || tempColorBox == 10) {
-                        tempColorBox = fgetc(fptrRead);
-                    }
-                }
-                tempColorBox -= 48; //ASCII to number
-                if(tempColorBox == 1) {
-                    boxData->color = BLACK;
-                } else {
+            switch (loadingType) {
+                case ALL_WHITE:
+                case TERMINAL_INPUT:
                     boxData->color = WHITE;
-                }
-            } else {
-                if(randomBlackBoxes) {
-                    int randomnessBox = rand() % 100;
-                    if(randomnessBox < chanceOfBlackBox) {
-                        boxData->color = BLACK;
-                    } else {
-                        boxData->color = WHITE;
-                    }
-                } else {
-                    boxData->color = WHITE;
-                }
+                    break;
+                case RANDOM_COLOR:
+                    initBoxRandom(boxData,chanceOfBlackBox);
+                    break;
+                case FILE_INPUT:
+                    initBoxFile(boxData,fptrRead);
+                    break;
+                default:
+                    //TODO WHAT TO PRINT?
+                    break;
             }
             //Mutex initialization and assignation to boxData
             boxMutexes[i][j] = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
             boxData->mut = &boxMutexes[i][j];
         }
     }
-    if(readFile) {
+    if(loadingType == FILE_INPUT) {
         fclose(fptrRead);
     }
-    if(selectBlackBox) {
-
-        bool continueReadInput = true;
-        printf("To add black BOX, enter X and Y of black box\n");
-        printf("If you want to quit selecting black boxes, write 'Q'\n");
-        while(true) {
-            int x;
-            int y;
-            printf("X: ");
-            scanf("%s",buffer);
-            if (buffer[0] == 'Q')
-                break;
-            longTempValue = strtol(buffer, &ptr, 10);
-            x = (int)longTempValue;
-            printf("Y: ");
-            scanf("%s",buffer);
-            if (buffer[0] == 'Q')
-                break;
-            longTempValue = strtol(buffer, &ptr, 10);
-            y = (int)longTempValue;
-            display.box[x][y]->color = BLACK;
-            printBackground((const BOX ***) display.box, rows, columns);
-        }
+    printf("init\n");
+    if (loadingType == TERMINAL_INPUT) {
+       initBoxTerminalInput(&display);
     }
+    printf("init\n");
+
+
     //pthreads of ants
     pthread_t ants[numberOfAnts];
     //data of ants
     ANT antsD[numberOfAnts];
     //Prints background
     printBackground((const BOX ***) display.box, rows, columns);
+
+    //TODO PUTING ANTS TO DISPLAY
     for (int i = 0; i < numberOfAnts; i++) {
         antsD[i].id = i+1;
         if(i == 1) {
@@ -163,6 +136,7 @@ int main(int argc,char* argv[]) {
         pthread_create(&ants[i],NULL,antF,&antsD[i]);
         printf("Created ant[%d]\n",i+1);
     }
+
     void *counter = 0;
     int counterOfFinishedAnts = 0;
     //printf("1111111111111111111\n");

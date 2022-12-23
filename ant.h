@@ -5,24 +5,9 @@
 #ifndef LANGTONSANTPOS_ANT_H
 #define LANGTONSANTPOS_ANT_H
 
-#include "display.h"
-
-typedef enum direction {
-    NORTH = 0,
-    EAST = 1,
-    SOUTH = 2,
-    WEST = 3,
-}ANT_DIRECTION;
-
-typedef struct ant {
-    int id;
-    int x;
-    int y;
-    ANT_DIRECTION direction;
+#include "structuresEnums.h"
 
 
-    DISPLAY* display;
-}ANT;
 
 void* antF(void* arg);
 void printAntInfo(ANT ant,const BOX ***boxes);

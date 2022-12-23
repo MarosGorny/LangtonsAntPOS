@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 #include "settings.h"
 
 LOADING_TYPE setLoadingType() {
@@ -122,6 +123,7 @@ void getNumberRowsCollumns(FILE* file,int* rows,int* columns) {
         fscanf(file,"%d", rows);
         fscanf(file,"%d", columns);
     }
+    fclose(file);
 }
 
 int getChanceOfBlackBox() {
@@ -148,6 +150,62 @@ void initBoxData(BOX* boxData, LOADING_TYPE loadingType) {
         default:
             //PRINT ERR????
             break;
+    }
+}
+
+void initBoxFile(BOX* boxData, FILE* file) {
+    int tempColorBox;
+    if((tempColorBox = fgetc(file)) != EOF) {
+        while (tempColorBox == 13 || tempColorBox == 10) {
+            tempColorBox = fgetc(file);
+        }
+    }
+    tempColorBox -= 48; //ASCII to number
+    if(tempColorBox == 1) {
+        boxData->color = BLACK;
+    } else {
+        boxData->color = WHITE;
+    }
+}
+
+void initBoxRandom(BOX* boxData, int chanceOfBlackBox) {
+    int randomnessBox = rand() % 100;
+    if(randomnessBox < chanceOfBlackBox) {
+        boxData->color = BLACK;
+    } else {
+        boxData->color = WHITE;
+    }
+}
+
+void initBoxTerminalInput(DISPLAY* display) {
+    printf("inside\n");
+    char buffer[100];
+    char *ptr;
+    long tempValue;
+
+    printf("To add black BOX, enter X and Y of black box\n");
+    printf("If you want to quit selecting black boxes, write 'Q'\n");
+    while (true) {
+        int x;
+        int y;
+        printf("X: ");
+        scanf("%s", buffer);
+        if (buffer[0] == 'Q')
+            break;
+        //tempValue = strtol(buffer, &ptr, 10);
+        tempValue = strtol(buffer, NULL, 10);
+        if(buffer[0] != '0' && tempValue ==0) {
+            printf("Error occured\n");
+        }
+
+        x = (int) tempValue;
+        printf("Y: ");
+        scanf("%s", buffer);
+        if (buffer[0] == 'Q')
+            break;
+        tempValue = strtol(buffer, &ptr, 10);
+        y = (int) tempValue;
+        display->box[x][y]->color = BLACK;
     }
 }
 

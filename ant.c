@@ -3,6 +3,7 @@
 //
 #include <stdio.h>
 #include <malloc.h>
+#include <stdbool.h>
 #include "ant.h"
 
 void* antF(void* arg) {
@@ -33,42 +34,42 @@ void* antF(void* arg) {
                 antsDisplay->box[antsOrgY][antsOrgX]->color = BLACK;
                 switch (ant->direction) {
                     case NORTH:
-                        ant->x += antsDisplay->directLogic ? 1:-1;
+                        ant->x += antsDisplay->logicType == DIRECT ? 1:-1;
                         break;
                     case EAST:
-                        ant->y += antsDisplay->directLogic ? 1:-1;
+                        ant->y += antsDisplay->logicType == DIRECT ? 1:-1;
                         break;
                     case SOUTH:
-                        ant->x += antsDisplay->directLogic ? -1:1;
+                        ant->x += antsDisplay->logicType == DIRECT ? -1:1;
                         break;
                     case WEST:
-                        ant->y += antsDisplay->directLogic ? -1:1;
+                        ant->y += antsDisplay->logicType == DIRECT ? -1:1;
                         break;
                     default:
                         fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
                 }
-                ant->direction = antsDisplay->directLogic ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
+                ant->direction = antsDisplay->logicType == DIRECT ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
 
             } else if (antBoxColor == BLACK) {
                 //printf("BLACK\n");
                 antsDisplay->box[antsOrgY][antsOrgX]->color = WHITE;
                 switch (ant->direction) {
                     case NORTH:
-                        ant->x += antsDisplay->directLogic ? -1:1;
+                        ant->x += antsDisplay->logicType == DIRECT ? -1:1;
                         break;
                     case EAST:
-                        ant->y += antsDisplay->directLogic ? -1:1;
+                        ant->y += antsDisplay->logicType == DIRECT ? -1:1;
                         break;
                     case SOUTH:
-                        ant->x += antsDisplay->directLogic ? 1:-1;
+                        ant->x += antsDisplay->logicType == DIRECT ? 1:-1;
                         break;
                     case WEST:
-                        ant->y += antsDisplay->directLogic ? 1:-1;
+                        ant->y += antsDisplay->logicType == DIRECT ? 1:-1;
                         break;
                     default:
                         fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
                 }
-                ant->direction = antsDisplay->directLogic ?  ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
+                ant->direction = antsDisplay->logicType == DIRECT ?  ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
             }
             //printf("END LOOP\n");
 

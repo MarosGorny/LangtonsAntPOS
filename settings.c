@@ -209,3 +209,71 @@ void initBoxTerminalInput(DISPLAY* display) {
     }
 }
 
+void chooseAntsPosition(int rows,int columns, ANT* antData) {
+    char buffer[100];
+    long tempValue = -1;
+
+    printf("To add the ant position, enter X and Y \n");
+    printf("If you want to quit program, write 'Q'\n");
+    printf("Or if you want to center the ant, write 'M'\n");
+
+    //TODO MAKE IT BETTER
+    scanf("%s", buffer);
+    if (buffer[0] == 'm' || buffer[0] == 'M') {
+        antData->x = columns/2;
+        antData->y = rows/2;
+        antData->direction = NORTH;
+        return;
+    }
+
+    while (true) {
+        int x;
+        int y;
+
+        while(true) {
+            printf("X: ");
+            scanf("%s", buffer);
+            if (buffer[0] == 'Q' || buffer[0] == 'q')
+                //TODO quit program
+                break;
+
+            tempValue = strtol(buffer, NULL, 10);
+            if(tempValue < rows && tempValue >= 0) {
+                if(buffer[0] != '0' && tempValue == 0) {
+                    printf("Error occured, try again pleas\n\n");
+                } else {
+                    break;
+                }
+            } else {
+                printf("Position is incorrect, try again please\n\n");
+            }
+        }
+        x = (int) tempValue;
+
+        while(true) {
+            printf("Y: ");
+            scanf("%s", buffer);
+            if (buffer[0] == 'Q' || buffer[0] == 'q')
+                //TODO quit program
+                break;
+
+            tempValue = strtol(buffer, NULL, 10);
+            if(tempValue < columns && tempValue >= 0) {
+                if(buffer[0] != '0' && tempValue == 0) {
+                    printf("Error occured, try again pleas\n\n");
+                } else {
+                    break;
+                }
+            } else {
+                printf("Position is incorrect, try again please\n\n");
+            }
+        }
+        y = (int) tempValue;
+
+        antData->x = x;
+        antData->y = y;
+        antData->direction = NORTH;
+    }
+}
+
+

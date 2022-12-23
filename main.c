@@ -102,12 +102,9 @@ int main(int argc,char* argv[]) {
     if(loadingType == FILE_INPUT) {
         fclose(fptrRead);
     }
-    printf("init\n");
     if (loadingType == TERMINAL_INPUT) {
        initBoxTerminalInput(&display);
     }
-    printf("init\n");
-
 
     //pthreads of ants
     pthread_t ants[numberOfAnts];
@@ -119,19 +116,7 @@ int main(int argc,char* argv[]) {
     //TODO PUTING ANTS TO DISPLAY
     for (int i = 0; i < numberOfAnts; i++) {
         antsD[i].id = i+1;
-        if(i == 1) {
-            antsD[i].direction = EAST;
-            antsD[i].x = 2;
-            antsD[i].y = 0;
-        } else if(i == 0){
-            antsD[i].direction = NORTH;
-            antsD[i].x = columns /2;
-            antsD[i].y = rows / 2;
-        } else {
-            antsD[i].direction = EAST;
-            antsD[i].x = 0;
-            antsD[i].y = 0;
-        }
+        chooseAntsPosition(rows,columns,&antsD[i]);
         antsD[i].display = &display;
         pthread_create(&ants[i],NULL,antF,&antsD[i]);
         printf("Created ant[%d]\n",i+1);

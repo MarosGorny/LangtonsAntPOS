@@ -21,5 +21,6 @@ int getChanceOfBlackBox();
 void initBoxFile(BOX* boxData, FILE* file);
 void initBoxRandom(BOX* boxData, int chanceOfBlackBox);
 void initBoxTerminalInput(DISPLAY* display);
+void chooseAntsPosition(int rows,int columns, ANT* antData);
 
 #endif //LANGTONSANTPOS_SETTINGS_H

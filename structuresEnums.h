@@ -37,6 +37,7 @@ typedef  struct box{
     BACKGROUND_COLOR color;
     int x;
     int y;
+    //TODO LINKED LIST NA ANTS??
 
     pthread_mutex_t* mut;
 }BOX;

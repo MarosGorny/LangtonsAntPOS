@@ -20,6 +20,8 @@ typedef struct data {
 
     LOADING_TYPE loadingType;
     LOGIC_TYPE logicType;
+    pthread_mutex_t writtenMutex;
+    int written;
 } DATA;
 
 void data_init(DATA *data, const char* userName, const int socket);
@@ -29,7 +31,12 @@ int data_isStopped(DATA *data);
 void *data_readData(void *data);
 void *data_writeData(void *data);
 
+void reset_written(DATA *data);
+void data_written(DATA *data);
+int data_isWritten(DATA *data);
+
 void printError(char *str);
+
 
 
 #endif //K_DEFINITIONS_H

@@ -111,7 +111,7 @@ int main(int argc,char* argv[]) {
     //////////////////////////////////////////
 
 
-    loadingType = setLoadingType(NULL);
+    //loadingType = setLoadingType(NULL);
     logicType = setLogicType();
     //numberOfAnts = setNumberOfAnts();
 

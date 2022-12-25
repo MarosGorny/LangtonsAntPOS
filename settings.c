@@ -11,19 +11,13 @@
 #include <unistd.h>
 #include <string.h>
 
-LOADING_TYPE setLoadingType(void *data) {
+LOADING_TYPE setLoadingType(char* buffer,void *data) {
     DATA *pdata = (DATA *)data;
-    char buffer[BUFFER_LENGTH + 1];
-    buffer[BUFFER_LENGTH] = '\0';
     int userNameLength = strlen(pdata->userName);
-
-    //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
-    fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     fd_set inputs;
     FD_ZERO(&inputs);
     struct timeval tv;
     tv.tv_usec = 0;
-    while(true) {
         printf("\nHow do you want start simulation? [write number and press enter]\n");
         printf("1: All squares are white.\n");
         printf("2: Square color is random.\n");
@@ -32,60 +26,65 @@ LOADING_TYPE setLoadingType(void *data) {
         printf("Q: Quit simulation\n");
         //scanf("%s",buffer);
         while(!data_isStopped(pdata)) {
+
+            if(data_isWritten(pdata)) {
+                break;
+            }
             tv.tv_sec = 1;
             FD_SET(STDIN_FILENO, &inputs);
             select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
+            char* action = "[Loading type]";
+            int countCharAfterName = 2 + strlen(action);
             if (FD_ISSET(STDIN_FILENO, &inputs)) {
-                sprintf(buffer, "%s: ", pdata->userName);
-                char *textStart = buffer + (userNameLength + 2);
-                while (fgets(textStart, BUFFER_LENGTH - (userNameLength + 2), stdin) > 0) {
+
+                sprintf(buffer, "%s%s: ", pdata->userName,action);
+                char *textStart = buffer + (userNameLength + countCharAfterName);
+                while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), stdin) > 0) {
                     char *pos = strchr(textStart, '\n');
                     if (pos != NULL) {
                         *pos = '\0';
                     }
-                    write(pdata->socket, buffer, strlen(buffer) + 1);
+
 
                     if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
                         printf("Koniec komunikacie.\n");
                         data_stop(pdata);
+                    } else {
+                        LOADING_TYPE tempLoadType = 100;
+                        switch (textStart[0]) {
+                            case '1':
+                                printf("All squares are white.\n");
+                                tempLoadType = ALL_WHITE;
+                                break;
+                            case'2':
+                                printf("Square color is random.\n");
+                                tempLoadType = RANDOM_COLOR;
+                                break;
+                            case'3':
+                                printf("Select black square through the terminal input.\n");
+                                tempLoadType = TERMINAL_INPUT;
+                                break;
+                            case'4':
+                                printf("Load dimension and squares color from file.\n");
+                                tempLoadType = FILE_INPUT;
+                                break;
+                            case'Q':
+                            case'q':
+                                printf("Closing simulation...\n");
+                                tempLoadType = NOT_SELECTED_LOADING_TYPE;
+                                break;
+                            default:
+                                printf("Selection is unknown. Try again please.\n");
+                                break;
+                        }
+                        if (tempLoadType != 100) {
+                            write(pdata->socket, buffer, strlen(buffer) + 1);
+                            return tempLoadType;
+                        }
                     }
-                }
-                printf("%s\n",textStart);
-
-                switch (textStart[0]) {
-                    case '1':
-                        printf("All squares are white.\n");
-                        fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
-                        return ALL_WHITE;
-                    case'2':
-                        printf("Square color is random.\n");
-                        return RANDOM_COLOR;
-                    case'3':
-                        printf("Select black square through the terminal input.\n");
-                        return TERMINAL_INPUT;
-                    case'4':
-                        printf("Load dimension and squares color from file.\n");
-
-                        return FILE_INPUT;
-                    case'Q':
-                    case'q':
-                        printf("Closing simulation...\n");
-                        fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
-                        return NOT_SELECTED_LOADING_TYPE;
-                    default:
-                        printf("Selection is unknown. Try again please.\n");
-                        break;
                 }
             }
         }
-
-
-    }
-
-
-
-
-
 }
 
 LOGIC_TYPE setLogicType() {
@@ -118,20 +117,26 @@ LOGIC_TYPE setLogicType() {
 int setNumberOfAnts(char* buffer,void* data) {
     DATA *pdata = (DATA *)data;
     int userNameLength = strlen(pdata->userName);
-    printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
 
+    printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
     fd_set inputs;
     FD_ZERO(&inputs);
     struct timeval tv;
     tv.tv_usec = 0;
     while(!data_isStopped(pdata)) {
+        if(data_isWritten(pdata)) {
+            break;
+        }
+
+
+        //printf("x\n");
         tv.tv_sec = 1;
         FD_SET(STDIN_FILENO, &inputs);
         select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
         char* action = "[Number of ants]";
         int countCharAfterName = 2 + strlen(action);
         if (FD_ISSET(STDIN_FILENO, &inputs)) {
-
+            printf("y\n");
             sprintf(buffer, "%s%s: ", pdata->userName,action);
             char *textStart = buffer + (userNameLength + countCharAfterName);
             while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), stdin) > 0) {
@@ -139,49 +144,24 @@ int setNumberOfAnts(char* buffer,void* data) {
                 if (pos != NULL) {
                     *pos = '\0';
                 }
-                write(pdata->socket, buffer, strlen(buffer) + 1);
+                //write(pdata->socket, buffer, strlen(buffer) + 1);
 
                 if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+                    write(pdata->socket, buffer, strlen(buffer) + 1);
                     printf("Koniec komunikacie.\n");
                     data_stop(pdata);
                 } else {
-                    return atoi(textStart);
+                    int temp = atoi(textStart);
+                    if(temp > 0) {
+                        write(pdata->socket, buffer, strlen(buffer) + 1);
+                        data_written(pdata);
+                        return atoi(textStart);
+                    }
                 }
+                printf("p\n");
             }
         }
     }
-    //fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
-
-
-//    int tempValue =-1;
-//    while(true) {
-//        //TODO Treba dorobit pripad, ked sa zada vacsie mnozstvo alebo sa zada pismeno
-//        printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
-//        scanf("%s",buffer);
-//        tempValue = (int) strtol(buffer, &ptr, 10);
-//        if(tempValue > 0) {
-//            return tempValue;
-//        } else {
-//            printf("Number of ants must be greater than 0\n");
-//        }
-//    }
-
-
-    //ORIGINAL
-//    char buffer[100];
-//    char* ptr;
-//    int tempValue =-1;
-//    while(true) {
-//        //TODO Treba dorobit pripad, ked sa zada vacsie mnozstvo alebo sa zada pismeno
-//        printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
-//        scanf("%s",buffer);
-//        tempValue = (int) strtol(buffer, &ptr, 10);
-//        if(tempValue > 0) {
-//            return tempValue;
-//        } else {
-//            printf("Number of ants must be greater than 0\n");
-//        }
-//    }
 }
 
 void* selectPositionsOfAnts() {

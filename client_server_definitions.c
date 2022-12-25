@@ -29,6 +29,7 @@ bool checkIfQuit(char* buffer,DATA *pdata) {
 void data_init(DATA *data, const char* userName, const int socket) {
     data->socket = socket;
     data->stop = 0;
+    data->written = 0;
     data->userName[USER_LENGTH] = '\0';
     data->rows = 0;
     data->columns = 0;
@@ -38,22 +39,49 @@ void data_init(DATA *data, const char* userName, const int socket) {
     data->logicType = NOT_SELECTED_ANTS_LOGIC;
     strncpy(data->userName, userName, USER_LENGTH);
     pthread_mutex_init(&data->mutex, NULL);
+    pthread_mutex_init(&data->writtenMutex, NULL);
 }
 
 void data_destroy(DATA *data) {
     pthread_mutex_destroy(&data->mutex);
+    pthread_mutex_destroy(&data->writtenMutex);
 }
 
 void data_stop(DATA *data) {
     pthread_mutex_lock(&data->mutex);
     data->stop = 1;
+    printf("Stop -> 1\n");
     pthread_mutex_unlock(&data->mutex);
+}
+
+void data_written(DATA *data) {
+    pthread_mutex_lock(&data->writtenMutex);
+    data->written = 1;
+    printf("Written -> 1\n");
+    pthread_mutex_unlock(&data->writtenMutex);
+}
+
+void reset_written(DATA *data) {
+    pthread_mutex_lock(&data->writtenMutex);
+    data->written = 0;
+    pthread_mutex_unlock(&data->writtenMutex);
+}
+
+
+int data_isWritten(DATA *data) {
+    int written;
+    pthread_mutex_lock(&data->writtenMutex);
+    written = data->written;
+    //printf("%d written\n",written);
+    pthread_mutex_unlock(&data->writtenMutex);
+    return written;
 }
 
 int data_isStopped(DATA *data) {
     int stop;
     pthread_mutex_lock(&data->mutex);
     stop = data->stop;
+    //printf("%d stopped\n",stop);
     pthread_mutex_unlock(&data->mutex);
     return stop;
 }
@@ -66,12 +94,15 @@ void *data_readData(void *data) {
 
     while(!data_isStopped(pdata)) {
         bzero(buffer, BUFFER_LENGTH);
+
         if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
             if(!checkIfQuit(buffer,pdata)) {
                 printf("%s\n", buffer);
             }
+            data_written(pdata);
         }
         else {
+            //printf("ZLY STOP\n");
             data_stop(pdata);
         }
     }
@@ -91,6 +122,10 @@ void *data_writeData(void *data) {
 
     if(pdata->numberOfAnts == 0) {
         pdata->numberOfAnts = setNumberOfAnts(buffer,data);
+        reset_written(pdata);
+    }
+    if(pdata->loadingType == NOT_SELECTED_LOADING_TYPE) {
+        pdata->loadingType = setLoadingType(buffer,data);
     }
     fd_set inputs;
     FD_ZERO(&inputs);

@@ -12,7 +12,7 @@
 
 
 
-LOADING_TYPE setLoadingType(void *data);
+LOADING_TYPE setLoadingType(char* buffer,void *data);
 LOGIC_TYPE setLogicType();
 int setNumberOfAnts(char* buffer,void* data);
 void getNumberRowsCollumns(FILE* file,int* rows,int* columns);

@@ -1,4 +1,5 @@
 #include "client_server_definitions.h"
+#include "settings.h"
 
 #include <stdlib.h>
 #include <string.h>

@@ -111,9 +111,9 @@ int main(int argc,char* argv[]) {
     //////////////////////////////////////////
 
 
-    loadingType = setLoadingType();
+    loadingType = setLoadingType(NULL);
     logicType = setLogicType();
-    numberOfAnts = setNumberOfAnts();
+    //numberOfAnts = setNumberOfAnts();
 
     if(loadingType == FILE_INPUT ) {
         getNumberRowsCollumns(fptrRead,&rows,&columns);

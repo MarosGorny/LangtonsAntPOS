@@ -12,9 +12,9 @@
 
 
 
-LOADING_TYPE setLoadingType();
+LOADING_TYPE setLoadingType(void *data);
 LOGIC_TYPE setLogicType();
-int setNumberOfAnts();
+int setNumberOfAnts(char* buffer,void* data);
 void getNumberRowsCollumns(FILE* file,int* rows,int* columns);
 int getChanceOfBlackBox();
 //void initBoxData(BOX* boxData, LOADING_TYPE loadingType);

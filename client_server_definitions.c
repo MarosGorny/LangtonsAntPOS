@@ -8,14 +8,17 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include "settings.h"
 
 char *endMsg = ":end";
 
-bool checkIfQuit(char* buffer) {
+bool checkIfQuit(char* buffer,DATA *pdata) {
     char *posSemi = strchr(buffer, ':');
     char *pos = strstr(posSemi + 1, endMsg);
     if (pos != NULL && pos - posSemi == 2 && *(pos + strlen(endMsg)) == '\0') {
         *(pos - 2) = '\0';
+        printf("Pouzivatel %s ukoncil komunikaciu.\n", buffer);
+        data_stop(pdata);
         return true;
     }
     else {
@@ -27,6 +30,12 @@ void data_init(DATA *data, const char* userName, const int socket) {
     data->socket = socket;
     data->stop = 0;
     data->userName[USER_LENGTH] = '\0';
+    data->rows = 0;
+    data->columns = 0;
+    data->numberOfAnts = 0;
+    data->loadingType = NOT_SELECTED_LOADING_TYPE;
+    printf("AFTER sETLOADING\n");
+    data->logicType = NOT_SELECTED_ANTS_LOGIC;
     strncpy(data->userName, userName, USER_LENGTH);
     pthread_mutex_init(&data->mutex, NULL);
 }
@@ -50,16 +59,15 @@ int data_isStopped(DATA *data) {
 }
 
 void *data_readData(void *data) {
+    printf("data_readData\n");
     DATA *pdata = (DATA *)data;
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
+
     while(!data_isStopped(pdata)) {
         bzero(buffer, BUFFER_LENGTH);
         if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
-            if(checkIfQuit(buffer)) {
-                printf("Pouzivatel %s ukoncil komunikaciu.\n", buffer);
-                data_stop(pdata);
-            } else {
+            if(!checkIfQuit(buffer,pdata)) {
                 printf("%s\n", buffer);
             }
         }
@@ -72,6 +80,7 @@ void *data_readData(void *data) {
 }
 
 void *data_writeData(void *data) {
+    printf("data_writeData\n");
     DATA *pdata = (DATA *)data;
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
@@ -79,6 +88,10 @@ void *data_writeData(void *data) {
 
     //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
+
+    if(pdata->numberOfAnts == 0) {
+        pdata->numberOfAnts = setNumberOfAnts(buffer,data);
+    }
     fd_set inputs;
     FD_ZERO(&inputs);
     struct timeval tv;
@@ -88,6 +101,7 @@ void *data_writeData(void *data) {
         FD_SET(STDIN_FILENO, &inputs);
         select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
         if (FD_ISSET(STDIN_FILENO, &inputs)) {
+
             sprintf(buffer, "%s: ", pdata->userName);
             char *textStart = buffer + (userNameLength + 2);
             while (fgets(textStart, BUFFER_LENGTH - (userNameLength + 2), stdin) > 0) {
@@ -100,10 +114,14 @@ void *data_writeData(void *data) {
                 if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
                     printf("Koniec komunikacie.\n");
                     data_stop(pdata);
+
                 }
             }
+
+
         }
     }
+
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 
     return NULL;

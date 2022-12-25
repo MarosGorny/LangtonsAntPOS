@@ -128,11 +128,13 @@ int setNumberOfAnts(char* buffer,void* data) {
         tv.tv_sec = 1;
         FD_SET(STDIN_FILENO, &inputs);
         select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
-
+        char* action = "[Number of ants]";
+        int countCharAfterName = 2 + strlen(action);
         if (FD_ISSET(STDIN_FILENO, &inputs)) {
-            sprintf(buffer, "%s: ", pdata->userName);
-            char *textStart = buffer + (userNameLength + 2);
-            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + 2), stdin) > 0) {
+
+            sprintf(buffer, "%s%s: ", pdata->userName,action);
+            char *textStart = buffer + (userNameLength + countCharAfterName);
+            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), stdin) > 0) {
                 char *pos = strchr(textStart, '\n');
                 if (pos != NULL) {
                     *pos = '\0';

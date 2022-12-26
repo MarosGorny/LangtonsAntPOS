@@ -33,6 +33,7 @@ void makeAction(char* buffer, DATA *pdata) {
     char *posActionStart = strchr(buffer, '[');
     char *posActionEnd;
 
+    pthread_mutex_lock(&pdata->mutex);
     if (posActionStart != NULL) {
         //posActionStart += 1;
         posActionEnd = strchr(buffer, ']');
@@ -73,9 +74,20 @@ void makeAction(char* buffer, DATA *pdata) {
         printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
     }
 
-
+    if (strcmp(target,"[READY]") == 0) {
+        char *columnsCharPointer = strchr(posActionEnd,' ');
+        int temp = atoi(columnsCharPointer);
+        if (temp == 1) {
+            printf("ANTS ARE READY\n");
+            pthread_cond_signal(&pdata->startGame);
+        } else {
+            printf("ANTS ARE NOT READY\n");
+        }
+    }
     //if ( target ) printf( "%s\n", target );
 
+    pthread_mutex_unlock(&pdata->mutex);
+    printf("After mutex unlock\n");
 
 
     free( target );
@@ -94,6 +106,10 @@ void data_init(DATA *data, const char* userName, const int socket) {
     strncpy(data->userName, userName, USER_LENGTH);
     pthread_mutex_init(&data->mutex, NULL);
     pthread_mutex_init(&data->writtenMutex, NULL);
+    printf("cond init before\n");
+    pthread_cond_init(&data->startGame,NULL);
+    printf("cond init after\n");
+
 }
 
 void data_destroy(DATA *data) {
@@ -152,7 +168,8 @@ void *data_readData(void *data) {
 //        printf("%d",abc);
         if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
             if(!checkIfQuit(buffer,pdata)) {
-                printf("%s\n", buffer);
+                printf("%s "
+                       "\n", buffer);
             }
             makeAction(buffer,pdata);
             data_written(pdata);
@@ -201,8 +218,19 @@ void *data_writeData(void *data) {
         int rows;
         int columns;
         setDimensions(buffer,data,&rows,&columns);
+//        //TODO START A GAME, este dorobit vyber pozicii
+//        char* action = "[READY]";
+//        sprintf(buffer, "%s%s: ", pdata->userName,action);
+//        write(pdata->socket, buffer, strlen(buffer) + 1);
         reset_written(pdata);
+
     }
+
+    checkIfReady(buffer,data);
+    reset_written(pdata);
+
+    printf("After writeCodeReady\n");
+
     fd_set inputs;
     FD_ZERO(&inputs);
     struct timeval tv;
@@ -228,8 +256,6 @@ void *data_writeData(void *data) {
 
                 }
             }
-
-
         }
     }
 

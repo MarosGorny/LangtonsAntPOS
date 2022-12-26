@@ -20,104 +20,31 @@ typedef struct sockaddr SA;
 #define BUFSIZE 4096
 #define SERVER_BACKLOG 100
 
-typedef struct initSettings{
+void* antSimulation(void* data) {
+    printf("antSimulation\n");
+    DATA *pdata = (DATA *)data;
 
-}ANTS_INIT_SETTINGS;
-
-int main(int argc,char* argv[]) {
-    // split into frames from wiki
-    // https://ezgif.com/split/ezgif-2-6771e98488.gif
-
-    int columns;
     int rows;
+    int columns;
     int numberOfAnts;
-    FILE *fptrRead;
-
-    LOADING_TYPE loadingType;
     LOGIC_TYPE logicType;
+    LOADING_TYPE loadingType;
 
-    columns = rows = 5;
-    //////////////////////////////////////////
-    ////SERVER
-    if (argc < 3) {
-        printError("Sever je nutne spustit s nasledujucimi argumentmi: port pouzivatel.");
-    }
-    int port = atoi(argv[1]);
-    if (port <= 0) {
-        printError("Port musi byt cele cislo vacsie ako 0.");
-    }
-    char *userName = argv[2];
+    //TODO WAIT
+    pthread_mutex_lock(&pdata->mutex);
+    pthread_cond_wait(&pdata->startGame,&pdata->mutex);
+    printf("After wait startGame\n");
+    rows = pdata->rows;
+    columns = pdata->columns;
+    numberOfAnts = pdata->numberOfAnts;
+    logicType = pdata->logicType;
+    loadingType = pdata->loadingType;
+    pthread_mutex_unlock(&pdata->mutex);
+    printf("After taking data from pdata game\n");
 
-    int serverSocket,clientSocket,addr_size;
-    SA_IN  server_addr, client_addr;
-
-    //vytvorenie TCP socketu <sys/socket.h>
-    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0) {
-        printError("Chyba - socket.");
-    }
-
-    //definovanie adresy servera <arpa/inet.h>
-    server_addr.sin_family = AF_INET;         //internetove sockety
-    server_addr.sin_addr.s_addr = INADDR_ANY; //prijimame spojenia z celeho internetu
-    server_addr.sin_port = htons(port);       //nastavenie portu
-
-    //prepojenie adresy servera so socketom <sys/socket.h>
-    if (bind(serverSocket, (SA *)&server_addr, sizeof(server_addr)) < 0) {
-        printError("Chyba - bind.");
-    }
-
-    //server bude prijimat nove spojenia cez socket serverSocket <sys/socket.h>
-    if(listen(serverSocket, SERVER_BACKLOG) < 0) {
-        printError("Chyba - listen.");
-    }
-
-    while (1) {
-        printf("Waiting for connections..\n");
-        //wait for, and eventually accept an incoming connection
-        addr_size = sizeof(SA_IN);
-        if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
-            printError("Chyba - accept");
-        }
-        printf("Connected!\n");
-
-        //uzavretie pasivneho socketu <unistd.h>
-        close(serverSocket);
-
-        //inicializacia dat zdielanych medzi vlaknami
-        DATA data;
-        data_init(&data, userName, clientSocket);
-
-        //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
-        pthread_t thread;
-        pthread_create(&thread, NULL, data_writeData, (void *)&data);
-
-        //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
-        data_readData((void *)&data);
-
-        //pockame na skoncenie zapisovacieho vlakna <pthread.h>
-        pthread_join(thread, NULL);
-        data_destroy(&data);
-
-        //uzavretie socketu klienta <unistd.h>
-        close(clientSocket);
-
-        break;
-    }
-    return (EXIT_SUCCESS);
-
-
-    ////END-SERVER
-    //////////////////////////////////////////
-
-
-    //loadingType = setLoadingType(NULL);
-    //logicType = setLogicType();
-    //numberOfAnts = setNumberOfAnts();
-
-    if(loadingType == FILE_INPUT ) {
-        getNumberRowsCollumns(fptrRead,&rows,&columns);
-    }
+//    if(loadingType == FILE_INPUT ) {
+//        getNumberRowsCollumns(fptrRead,&rows,&columns);
+//    }
     printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
 
     pthread_mutex_t mainMut = PTHREAD_MUTEX_INITIALIZER;
@@ -140,12 +67,12 @@ int main(int argc,char* argv[]) {
         chanceOfBlackBox = getChanceOfBlackBox();
     }
 
-    if(loadingType == FILE_INPUT) {
-        int temp;
-        fptrRead = fopen("../txtFiles/test.txt","r");
-        fscanf(fptrRead,"%d", &temp);
-        fscanf(fptrRead,"%d", &temp);
-    }
+//    if(loadingType == FILE_INPUT) {
+//        int temp;
+//        fptrRead = fopen("../txtFiles/test.txt","r");
+//        fscanf(fptrRead,"%d", &temp);
+//        fscanf(fptrRead,"%d", &temp);
+//    }
 
     //Initialization of boxes and creating
 
@@ -170,7 +97,7 @@ int main(int argc,char* argv[]) {
                     initBoxRandom(boxData,chanceOfBlackBox);
                     break;
                 case FILE_INPUT:
-                    initBoxFile(boxData,fptrRead);
+//                    initBoxFile(boxData,fptrRead);
                     break;
                 default:
                     //TODO WHAT TO PRINT?
@@ -181,11 +108,11 @@ int main(int argc,char* argv[]) {
             boxData->mut = &boxMutexes[i][j];
         }
     }
-    if(loadingType == FILE_INPUT) {
-        fclose(fptrRead);
-    }
+//    if(loadingType == FILE_INPUT) {
+//        fclose(fptrRead);
+//    }
     if (loadingType == TERMINAL_INPUT) {
-       initBoxTerminalInput(&display);
+        initBoxTerminalInput(&display);
     }
 
     //pthreads of ants
@@ -266,5 +193,114 @@ int main(int argc,char* argv[]) {
     for (int i = 0; i < numberOfAnts; i++) {
         pthread_barrier_destroy(&barriers[i]);
     }
+}
+
+int main(int argc,char* argv[]) {
+    // split into frames from wiki
+    // https://ezgif.com/split/ezgif-2-6771e98488.gif
+
+    int columns;
+    int rows;
+    int numberOfAnts;
+    FILE *fptrRead;
+
+    LOADING_TYPE loadingType;
+    LOGIC_TYPE logicType;
+
+    columns = rows = 5;
+    //////////////////////////////////////////
+    ////SERVER
+    if (argc < 3) {
+        printError("Sever je nutne spustit s nasledujucimi argumentmi: port pouzivatel.");
+    }
+    int port = atoi(argv[1]);
+    if (port <= 0) {
+        printError("Port musi byt cele cislo vacsie ako 0.");
+    }
+    char *userName = argv[2];
+
+    int serverSocket,clientSocket,addr_size;
+    SA_IN  server_addr, client_addr;
+
+    //vytvorenie TCP socketu <sys/socket.h>
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket < 0) {
+        printError("Chyba - socket.");
+    }
+
+    //definovanie adresy servera <arpa/inet.h>
+    server_addr.sin_family = AF_INET;         //internetove sockety
+    server_addr.sin_addr.s_addr = INADDR_ANY; //prijimame spojenia z celeho internetu
+    server_addr.sin_port = htons(port);       //nastavenie portu
+
+    //prepojenie adresy servera so socketom <sys/socket.h>
+    if (bind(serverSocket, (SA *)&server_addr, sizeof(server_addr)) < 0) {
+        printError("Chyba - bind.");
+    }
+
+    //server bude prijimat nove spojenia cez socket serverSocket <sys/socket.h>
+    if(listen(serverSocket, SERVER_BACKLOG) < 0) {
+        printError("Chyba - listen.");
+    }
+
+    while (1) {
+        printf("Waiting for connections..\n");
+        //wait for, and eventually accept an incoming connection
+        addr_size = sizeof(SA_IN);
+        if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
+            printError("Chyba - accept");
+        }
+        printf("Connected!\n");
+
+        //uzavretie pasivneho socketu <unistd.h>
+        close(serverSocket);
+
+
+
+
+
+
+        //inicializacia dat zdielanych medzi vlaknami
+        DATA data;
+        data_init(&data, userName, clientSocket);
+        printf("After init\n");
+
+        //TODO SPravit game thread na pracu s mravcekmi
+        pthread_t gameThread;
+        pthread_create(&gameThread,NULL,antSimulation,(void* )&data);
+        printf("After gameThreadCreated\n");
+
+
+
+
+        //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
+        pthread_t thread;
+        pthread_create(&thread, NULL, data_writeData, (void *)&data);
+
+
+
+        //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
+        data_readData((void *)&data);
+
+
+
+        //pockame na skoncenie zapisovacieho vlakna <pthread.h>
+        pthread_join(gameThread,NULL);
+        pthread_join(thread, NULL);
+        data_destroy(&data);
+
+        //uzavretie socketu klienta <unistd.h>
+        close(clientSocket);
+
+        break;
+    }
+    return (EXIT_SUCCESS);
+
+
+    ////END-SERVER
+    //////////////////////////////////////////
+
+
+
     return 0;
 }

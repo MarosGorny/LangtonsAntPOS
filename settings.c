@@ -4,12 +4,68 @@
 
 #include <stdlib.h>
 #include <time.h>
-#include <stdbool.h>
 #include "settings.h"
 #include "client_server_definitions.h"
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+
+bool checkIfReady(char* buffer,void *data) {
+    DATA *pdata = (DATA *)data;
+    int userNameLength = strlen(pdata->userName);
+
+    printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
+    fd_set inputs;
+    FD_ZERO(&inputs);
+    struct timeval tv;
+    tv.tv_usec = 0;
+    while(!data_isStopped(pdata)) {
+        if(data_isWritten(pdata)) {
+            break;
+        }
+
+
+        //printf("x\n");
+        tv.tv_sec = 1;
+        FD_SET(STDIN_FILENO, &inputs);
+        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
+        char* action = "[READY]";
+        int countCharAfterName = 2 + strlen(action);
+        if (FD_ISSET(STDIN_FILENO, &inputs)) {
+            printf("y\n");
+            sprintf(buffer, "%s%s: ", pdata->userName,action);
+            char *textStart = buffer + (userNameLength + countCharAfterName);
+            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), stdin) > 0) {
+                char *pos = strchr(textStart, '\n');
+                if (pos != NULL) {
+                    *pos = '\0';
+                }
+                //write(pdata->socket, buffer, strlen(buffer) + 1);
+
+                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+                    write(pdata->socket, buffer, strlen(buffer) + 1);
+                    printf("Koniec komunikacie.\n");
+                    data_stop(pdata);
+                } else {
+                    int temp = atoi(textStart);
+                    if(temp == 2 || temp == 1) {
+
+                        write(pdata->socket, buffer, strlen(buffer) + 1);
+
+                        data_written(pdata);
+                        return atoi(textStart);
+                    }
+                }
+                printf("p\n");
+            }
+        }
+    }
+
+
+
+
+
+}
 
 LOADING_TYPE setLoadingType(char* buffer,void *data) {
     DATA *pdata = (DATA *)data;
@@ -388,6 +444,14 @@ void chooseAntsPosition(int rows,int columns, ANT* antData) {
     printf("To add the ant position, enter X and Y \n");
     printf("If you want to quit program, write 'Q'\n");
     printf("Or if you want to center the ant, write 'M'\n");
+
+
+    ///JUST FOR TESTING PURPOSE
+    antData->x = columns/2;
+    antData->y = rows/2;
+    antData->direction = NORTH;
+    return;
+
 
     //TODO MAKE IT BETTER
     scanf("%s", buffer);

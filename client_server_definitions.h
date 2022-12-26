@@ -21,7 +21,11 @@ typedef struct data {
     LOADING_TYPE loadingType;
     LOGIC_TYPE logicType;
     pthread_mutex_t writtenMutex;
+
+
     int written;
+    pthread_cond_t startGame;
+    //pthread_cond_t* odober;
 } DATA;
 
 void data_init(DATA *data, const char* userName, const int socket);

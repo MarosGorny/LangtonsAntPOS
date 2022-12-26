@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include "structuresEnums.h"
+#include <stdbool.h>
 
 
 
@@ -22,5 +23,6 @@ void initBoxFile(BOX* boxData, FILE* file);
 void initBoxRandom(BOX* boxData, int chanceOfBlackBox);
 void initBoxTerminalInput(DISPLAY* display);
 void chooseAntsPosition(int rows,int columns, ANT* antData);
+bool checkIfReady(char* buffer,void *data);
 
 #endif //LANGTONSANTPOS_SETTINGS_H

@@ -205,7 +205,7 @@ int setNumberOfAnts(char* buffer,void* data) {
     }
 }
 
-void * setDimensions(char* buffer, void* data, int* rows, int* columns) {
+char* setDimensions(char* buffer, void* data, int* rows, int* columns) {
     DATA *pdata = (DATA *)data;
     int userNameLength = strlen(pdata->userName);
 
@@ -247,8 +247,10 @@ void * setDimensions(char* buffer, void* data, int* rows, int* columns) {
                     }
                     if(*columns > 0 && *rows > 0) {
                         write(pdata->socket, buffer, strlen(buffer) + 1);
+                        pdata->rows = *rows;
+                        pdata->columns = *columns;
                         data_written(pdata);
-                        return NULL;
+                        return textStart;
                     }
                 }
                 printf("p\n");

@@ -11,7 +11,7 @@
 
 
 
-
+char* setDimensions(char* buffer, void* data, int* rows, int* columns);
 LOADING_TYPE setLoadingType(char* buffer,void *data);
 LOGIC_TYPE setLogicType(char* buffer,void* data);
 int setNumberOfAnts(char* buffer,void* data);

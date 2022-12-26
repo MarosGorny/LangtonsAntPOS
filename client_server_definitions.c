@@ -28,33 +28,57 @@ bool checkIfQuit(char* buffer,DATA *pdata) {
 }
 
 void makeAction(char* buffer, DATA *pdata) {
-    printf("1\n");
+
     char *target = NULL;
     char *posActionStart = strchr(buffer, '[');
     char *posActionEnd;
-    printf("2\n");
-    if (posActionStart != NULL) {
-        posActionStart += 1;
-        printf("11111\n");
-        posActionEnd = strchr(buffer, ']');
-        printf("22222 %ld\n",posActionEnd - posActionStart + 1);
 
-        target = ( char * )malloc( posActionEnd - posActionStart + 1 );
-        memcpy( target, posActionStart, posActionEnd - posActionStart );
-        target[posActionEnd - posActionStart] = '\0';
-        //strncpy(target, posActionStart + 1, posActionEnd - posActionStart + 1);
-        printf("3\n");
+    if (posActionStart != NULL) {
+        //posActionStart += 1;
+        posActionEnd = strchr(buffer, ']');
+
+        target = ( char * )malloc( posActionEnd - posActionStart + 2 );
+        memcpy( target, posActionStart, posActionEnd - posActionStart +1);
+        target[posActionEnd - posActionStart + 1] = '\0';
     }
-    printf("4\n");
-    if (strcmp(target,"Number of ants") == 0) {
+
+    if (strcmp(target,"[Number of ants]") == 0) {
         pdata->numberOfAnts = atoi(posActionEnd + 2);
         printf("Changed number of ants: %d\n",pdata->numberOfAnts);
-    } else {
-        printf("Nota same strings\n");
     }
-    if ( target ) printf( "%s\n", target );
-    free( target );
 
+    if (strcmp(target,"[Loading type]") == 0) {
+        LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionEnd + 2);
+        pdata->loadingType = loadingType;
+        printf("Changed loading type: %d\n",pdata->loadingType);
+    }
+
+    if (strcmp(target,"[Logic type]") == 0) {
+        LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2);
+        pdata->logicType = logicType;
+        printf("Changed logic type: %d\n",pdata->logicType);
+    }
+
+    if (strcmp(target,"[Dimensions]") == 0) {
+        char *columnsCharPointer = strchr(posActionEnd+3,' ');
+        if ( columnsCharPointer ) printf( "%s\n", columnsCharPointer );
+        if(columnsCharPointer == NULL) {
+            pdata->columns = atoi(posActionEnd+2);
+        } else {
+            pdata->columns = atoi(columnsCharPointer);
+        }
+        if ( posActionEnd+2 ) printf( "%s\n", posActionEnd+2 );
+        pdata->rows = atoi(posActionEnd+2);
+
+        printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
+    }
+
+
+    //if ( target ) printf( "%s\n", target );
+
+
+
+    free( target );
 }
 
 void data_init(DATA *data, const char* userName, const int socket) {
@@ -62,11 +86,10 @@ void data_init(DATA *data, const char* userName, const int socket) {
     data->stop = 0;
     data->written = 0;
     data->userName[USER_LENGTH] = '\0';
-    data->rows = 5;
-    data->columns = 5;
-    data->numberOfAnts = 0;
+    data->rows = -1;
+    data->columns = -1;
+    data->numberOfAnts = -1;
     data->loadingType = NOT_SELECTED_LOADING_TYPE;
-    printf("AFTER sETLOADING\n");
     data->logicType = NOT_SELECTED_ANTS_LOGIC;
     strncpy(data->userName, userName, USER_LENGTH);
     pthread_mutex_init(&data->mutex, NULL);
@@ -156,7 +179,7 @@ void *data_writeData(void *data) {
 
 //    int abc = htonl(123);
 //    write(pdata->socket,&abc,sizeof(abc));
-    if(pdata->numberOfAnts == 0) {
+    if(pdata->numberOfAnts <= 0) {
         pdata->numberOfAnts = setNumberOfAnts(buffer,data);
 
 //        Descriptor descriptor;
@@ -165,14 +188,21 @@ void *data_writeData(void *data) {
 //        write(pdata->socket, buffer, strlen(buffer) + 1);
         reset_written(pdata);
     }
-//    if(pdata->loadingType == NOT_SELECTED_LOADING_TYPE) {
-//        pdata->loadingType = setLoadingType(buffer,data);
-//        reset_written(pdata);
-//    }
-//    if(pdata->logicType == NOT_SELECTED_ANTS_LOGIC) {
-//        pdata->logicType = setLogicType(buffer,data);
-//        reset_written(pdata);
-//    }
+    if(pdata->loadingType == NOT_SELECTED_LOADING_TYPE) {
+        pdata->loadingType = setLoadingType(buffer,data);
+        reset_written(pdata);
+    }
+    if(pdata->logicType == NOT_SELECTED_ANTS_LOGIC) {
+        pdata->logicType = setLogicType(buffer,data);
+        reset_written(pdata);
+    }
+
+    if(pdata->columns <= 0 || pdata->rows <= 0) {
+        int rows;
+        int columns;
+        setDimensions(buffer,data,&rows,&columns);
+        reset_written(pdata);
+    }
     fd_set inputs;
     FD_ZERO(&inputs);
     struct timeval tv;

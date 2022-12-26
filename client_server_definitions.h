@@ -2,7 +2,9 @@
 #define	K_DEFINITIONS_H
 
 #include <pthread.h>
+#include <stdbool.h>
 #include "structuresEnums.h"
+
 
 #define USER_LENGTH 10
 #define BUFFER_LENGTH 300
@@ -25,9 +27,21 @@ typedef struct data {
 
     int written;
     pthread_cond_t startGame;
-    //pthread_cond_t* odober;
 } DATA;
 
+typedef enum actionCode {
+    UKNOWN_ACTION = -1,
+    NUMBER_OF_ANTS_ACTION = 1,
+    LOADING_TYPE_ACTION = 2,
+    LOGIC_TYPE_ACTION = 3,
+    DIMENSION_ACTION = 4,
+    READY_ACTION = 5,
+}ACTION_CODE;
+
+void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode);
+bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode,char* buffer, char* textStart);
+
+char* printActionQuestionByCode(ACTION_CODE actionCode);
 void data_init(DATA *data, const char* userName, const int socket);
 void data_destroy(DATA *data);
 void data_stop(DATA *data);

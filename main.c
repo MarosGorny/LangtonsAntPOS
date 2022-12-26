@@ -8,7 +8,6 @@
 #include "display.h"
 #include "settings.h"
 #include "client_server_definitions.h"
-//#include "client_server_definitions.h"
 
 
 #include <sys/socket.h>
@@ -21,7 +20,13 @@ typedef struct sockaddr SA;
 #define SERVER_BACKLOG 100
 
 void* antSimulation(void* data) {
-    printf("antSimulation\n");
+    // split into frames from wiki
+    // https://ezgif.com/split/ezgif-2-6771e98488.gif
+
+//    FILE *fptrRead;
+//
+
+    printLog("void* antSimulation(void* data)");
     DATA *pdata = (DATA *)data;
 
     int rows;
@@ -30,10 +35,10 @@ void* antSimulation(void* data) {
     LOGIC_TYPE logicType;
     LOADING_TYPE loadingType;
 
-    //TODO WAIT
+
     pthread_mutex_lock(&pdata->mutex);
     pthread_cond_wait(&pdata->startGame,&pdata->mutex);
-    printf("After wait startGame\n");
+    printLog("After: pthread_cond_wait(&pdata->startGame,&pdata->mutex)");
     rows = pdata->rows;
     columns = pdata->columns;
     numberOfAnts = pdata->numberOfAnts;
@@ -196,26 +201,16 @@ void* antSimulation(void* data) {
 }
 
 int main(int argc,char* argv[]) {
-    // split into frames from wiki
-    // https://ezgif.com/split/ezgif-2-6771e98488.gif
 
-    int columns;
-    int rows;
-    int numberOfAnts;
-    FILE *fptrRead;
-
-    LOADING_TYPE loadingType;
-    LOGIC_TYPE logicType;
-
-    columns = rows = 5;
     //////////////////////////////////////////
     ////SERVER
+    printLog("main: server");
     if (argc < 3) {
-        printError("Sever je nutne spustit s nasledujucimi argumentmi: port pouzivatel.");
+        printError("Sever have to be launched with following arguments: port username.");
     }
     int port = atoi(argv[1]);
     if (port <= 0) {
-        printError("Port musi byt cele cislo vacsie ako 0.");
+        printError("Port have to be integer greater than 0.");
     }
     char *userName = argv[2];
 
@@ -225,7 +220,7 @@ int main(int argc,char* argv[]) {
     //vytvorenie TCP socketu <sys/socket.h>
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
-        printError("Chyba - socket.");
+        printError("Error - socket.");
     }
 
     //definovanie adresy servera <arpa/inet.h>
@@ -235,56 +230,45 @@ int main(int argc,char* argv[]) {
 
     //prepojenie adresy servera so socketom <sys/socket.h>
     if (bind(serverSocket, (SA *)&server_addr, sizeof(server_addr)) < 0) {
-        printError("Chyba - bind.");
+        printError("Error - bind.");
     }
 
     //server bude prijimat nove spojenia cez socket serverSocket <sys/socket.h>
     if(listen(serverSocket, SERVER_BACKLOG) < 0) {
-        printError("Chyba - listen.");
+        printError("Error - listen.");
     }
 
     while (1) {
         printf("Waiting for connections..\n");
+
         //wait for, and eventually accept an incoming connection
         addr_size = sizeof(SA_IN);
         if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
-            printError("Chyba - accept");
+            printError("Error - accept");
         }
-        printf("Connected!\n");
+        printf("Client connected!\n");
 
         //uzavretie pasivneho socketu <unistd.h>
         close(serverSocket);
 
 
-
-
-
-
         //inicializacia dat zdielanych medzi vlaknami
         DATA data;
         data_init(&data, userName, clientSocket);
-        printf("After init\n");
 
-        //TODO SPravit game thread na pracu s mravcekmi
+
+        //inicializacia vlakna na ktorom bude prebiehat simulacia
         pthread_t gameThread;
         pthread_create(&gameThread,NULL,antSimulation,(void* )&data);
-        printf("After gameThreadCreated\n");
-
-
-
 
         //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
         pthread_t thread;
         pthread_create(&thread, NULL, data_writeData, (void *)&data);
 
-
-
         //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
         data_readData((void *)&data);
 
-
-
-        //pockame na skoncenie zapisovacieho vlakna <pthread.h>
+        //pockame na skoncenie zapisovacieho vlakna <pthread.h> a vlakna na simulacia mravcov
         pthread_join(gameThread,NULL);
         pthread_join(thread, NULL);
         data_destroy(&data);
@@ -296,11 +280,6 @@ int main(int argc,char* argv[]) {
     }
     return (EXIT_SUCCESS);
 
-
     ////END-SERVER
     //////////////////////////////////////////
-
-
-
-    return 0;
 }

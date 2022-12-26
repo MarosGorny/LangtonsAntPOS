@@ -13,6 +13,109 @@
 
 char *endMsg = ":end";
 
+bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart) {
+    if(actionCode == NUMBER_OF_ANTS_ACTION) {
+        int temp = atoi(textStart);
+        if(temp > 0) {
+
+            write(pdata->socket, buffer, strlen(buffer) + 1);
+            //data_written(pdata);
+            pdata->numberOfAnts = temp;
+            return true;
+        }
+    } else if (actionCode == LOADING_TYPE_ACTION) {
+        LOADING_TYPE tempLoadType = 100;
+        switch (textStart[0]) {
+            case '1':
+                printf("All squares are white.\n");
+                tempLoadType = ALL_WHITE;
+                break;
+            case'2':
+                printf("Square color is random.\n");
+                tempLoadType = RANDOM_COLOR;
+                break;
+            case'3':
+                printf("Select black square through the terminal input.\n");
+                tempLoadType = TERMINAL_INPUT;
+                break;
+            case'4':
+                printf("Load dimension and squares color from file.\n");
+                tempLoadType = FILE_INPUT;
+                break;
+            case'Q':
+            case'q':
+                printf("Closing simulation...\n");
+                tempLoadType = NOT_SELECTED_LOADING_TYPE;
+                break;
+            default:
+                printf("Selection is unknown. Try again please.\n");
+                break;
+        }
+        if (tempLoadType != 100) {
+            write(pdata->socket, buffer, strlen(buffer) + 1);
+            //data_written(pdata);
+            pdata->loadingType = tempLoadType;
+            //reset_written(pdata);
+            return true;
+        }
+    } else if (actionCode == LOGIC_TYPE_ACTION) {
+        LOGIC_TYPE tempLogicType = 100;
+        switch (textStart[0]) {
+            case '1':
+                printf("Logic of ants is direct.\n");
+                tempLogicType = DIRECT;
+                break;
+            case '2':
+                printf("Logic of ants is inverted.\n");
+                tempLogicType =  INVERT;
+                break;
+            case 'q':
+            case 'Q':
+                printf("Closing simulation...\n");
+                tempLogicType =  NOT_SELECTED_ANTS_LOGIC;
+                break;
+            default:
+                printf("Selection is unknown. Try again please.\n");
+                break;
+        }
+        if (tempLogicType != 100) {
+            write(pdata->socket, buffer, strlen(buffer) + 1);
+            //data_written(pdata);
+            pdata->logicType = tempLogicType;
+            //reset_written(pdata);
+            return true;
+        }
+    } else if (actionCode == DIMENSION_ACTION) {
+        int rows;
+        int columns;
+        char *columnsCharPointer = strchr(textStart,' ');
+        rows = atoi(textStart);
+        if(columnsCharPointer == NULL) {
+            columns = atoi(textStart);
+        } else {
+            columns = atoi(columnsCharPointer);
+        }
+        if(columns > 0 && rows > 0) {
+            write(pdata->socket, buffer, strlen(buffer) + 1);
+            //data_written(pdata);
+            pdata->rows = rows;
+            pdata->columns = columns;
+            //reset_written(pdata);
+            return true;
+        }
+    } else if (actionCode == READY_ACTION) {
+        int temp = atoi(textStart);
+        if(temp == 2 || temp == 1) {
+            write(pdata->socket, buffer, strlen(buffer) + 1);
+            //data_written(pdata);
+            //reset_written(pdata);
+            return true;
+        }
+    }
+    return false;
+
+}
+
 bool checkIfQuit(char* buffer,DATA *pdata) {
     char *posSemi = strchr(buffer, ':');
     char *pos = strstr(posSemi + 1, endMsg);
@@ -25,6 +128,85 @@ bool checkIfQuit(char* buffer,DATA *pdata) {
     else {
         return false;
     }
+}
+
+char* printActionQuestionByCode(ACTION_CODE actionCode) {
+
+    if(actionCode == NUMBER_OF_ANTS_ACTION) {
+        printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
+        return "[Number of ants]";
+    } else if (actionCode == LOADING_TYPE_ACTION) {
+        printf("\nHow do you want start simulation? [write number and press enter]\n");
+        printf("1: All squares are white.\n");
+        printf("2: Square color is random.\n");
+        printf("3: Select black squares through the terminal input.\n");
+        printf("4: Load dimension and squares colors from file.\n");
+        printf("Q: Quit simulation\n");
+        return "[Loading type]";
+    } else if (actionCode == LOGIC_TYPE_ACTION) {
+        printf("\nWhich logic of ants do you want? [write number and press enter]\n");
+        printf("1: Direct logic.\n");
+        printf("2: Inverted logic.\n");
+        printf("Q: Quit simulation\n");
+        return "[Logic type]";
+    } else if (actionCode == DIMENSION_ACTION) {
+        printf("\nSelect dimensions of ground, [write rows and columns, divided by space\n");
+        return "[Dimensions]";
+    } else if (actionCode == READY_ACTION) {
+        printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
+        return "[READY]";
+    }
+
+    return NULL;
+}
+
+void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
+    printLog("void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode)");
+    char buffer[BUFFER_LENGTH + 1];
+    buffer[BUFFER_LENGTH] = '\0';
+    int userNameLength = strlen(pdata->userName);
+    char* action;
+
+    action = printActionQuestionByCode(actionCode);
+
+    fd_set inputs;
+    FD_ZERO(&inputs);
+    struct timeval tv;
+    tv.tv_usec = 0;
+    while(!data_isStopped(pdata)) {
+        if(data_isWritten(pdata)) {
+            break;
+        }
+
+        tv.tv_sec = 1;
+        FD_SET(STDIN_FILENO, &inputs);
+        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
+        int countCharAfterName = 2 + strlen(action);
+        if (FD_ISSET(STDIN_FILENO, &inputs)) {
+            sprintf(buffer, "%s%s: ", pdata->userName,action);
+            char *textStart = buffer + (userNameLength + countCharAfterName);
+            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), stdin) > 0) {
+                char *pos = strchr(textStart, '\n');
+                if (pos != NULL) {
+                    *pos = '\0';
+                }
+
+                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+                    write(pdata->socket, buffer, strlen(buffer) + 1);
+                    printf("End of communication.\n");
+                    data_stop(pdata);
+                } else {
+                    if(writeToSocketAndSetSharedAntsData(pdata,actionCode,buffer,textStart)) {
+                        data_written(pdata);
+                        goto exit;
+                    }
+
+                }
+            }
+        }
+    }
+    exit:
+    reset_written(pdata);
 }
 
 void makeAction(char* buffer, DATA *pdata) {
@@ -94,6 +276,7 @@ void makeAction(char* buffer, DATA *pdata) {
 }
 
 void data_init(DATA *data, const char* userName, const int socket) {
+    printLog("void data_init(DATA *data, const char* userName, const int socket)");
     data->socket = socket;
     data->stop = 0;
     data->written = 0;
@@ -103,18 +286,18 @@ void data_init(DATA *data, const char* userName, const int socket) {
     data->numberOfAnts = -1;
     data->loadingType = NOT_SELECTED_LOADING_TYPE;
     data->logicType = NOT_SELECTED_ANTS_LOGIC;
+
     strncpy(data->userName, userName, USER_LENGTH);
     pthread_mutex_init(&data->mutex, NULL);
     pthread_mutex_init(&data->writtenMutex, NULL);
-    printf("cond init before\n");
     pthread_cond_init(&data->startGame,NULL);
-    printf("cond init after\n");
 
 }
 
 void data_destroy(DATA *data) {
     pthread_mutex_destroy(&data->mutex);
     pthread_mutex_destroy(&data->writtenMutex);
+    pthread_cond_destroy(&data->startGame);
 }
 
 void data_stop(DATA *data) {
@@ -135,6 +318,33 @@ void reset_written(DATA *data) {
     pthread_mutex_lock(&data->writtenMutex);
     data->written = 0;
     pthread_mutex_unlock(&data->writtenMutex);
+}
+
+void initSimulationSetting(DATA* pdata) {
+    printLog("void initSimulationSetting(DATA* pdata)");
+
+
+    if(pdata->numberOfAnts <= 0) {
+        writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION);
+    }
+
+    printLog("after: writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION)");
+    if(pdata->loadingType == NOT_SELECTED_LOADING_TYPE) {
+        writeToSocketByAction(pdata,LOADING_TYPE_ACTION);
+    }
+
+    printLog("after: writeToSocketByAction(pdata,LOADING_TYPE_ACTION)");
+    if(pdata->logicType == NOT_SELECTED_ANTS_LOGIC) {
+        writeToSocketByAction(pdata,LOGIC_TYPE_ACTION);
+    }
+
+    printLog("after: writeToSocketByAction(pdata,LOGIC_TYPE_ACTION)");
+    if(pdata->columns <= 0 || pdata->rows <= 0) {
+        writeToSocketByAction(pdata,DIMENSION_ACTION);
+    }
+
+    printLog("after: writeToSocketByAction(pdata,DIMENSION_ACTION)");
+    writeToSocketByAction(pdata,READY_ACTION);
 }
 
 
@@ -168,8 +378,7 @@ void *data_readData(void *data) {
 //        printf("%d",abc);
         if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
             if(!checkIfQuit(buffer,pdata)) {
-                printf("%s "
-                       "\n", buffer);
+                printf("%s \n", buffer);
             }
             makeAction(buffer,pdata);
             data_written(pdata);
@@ -184,80 +393,43 @@ void *data_readData(void *data) {
 }
 
 void *data_writeData(void *data) {
-    printf("data_writeData\n");
+    printLog("void *data_writeData(void *data)");
     DATA *pdata = (DATA *)data;
-    char buffer[BUFFER_LENGTH + 1];
-    buffer[BUFFER_LENGTH] = '\0';
-    int userNameLength = strlen(pdata->userName);
 
     //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
 
+    initSimulationSetting(pdata);
 
-//    int abc = htonl(123);
-//    write(pdata->socket,&abc,sizeof(abc));
-    if(pdata->numberOfAnts <= 0) {
-        pdata->numberOfAnts = setNumberOfAnts(buffer,data);
 
-//        Descriptor descriptor;
-//        memset(&descriptor, 0, sizeof(Descriptor));
-//        memset(data,0, sizeof )
-//        write(pdata->socket, buffer, strlen(buffer) + 1);
-        reset_written(pdata);
-    }
-    if(pdata->loadingType == NOT_SELECTED_LOADING_TYPE) {
-        pdata->loadingType = setLoadingType(buffer,data);
-        reset_written(pdata);
-    }
-    if(pdata->logicType == NOT_SELECTED_ANTS_LOGIC) {
-        pdata->logicType = setLogicType(buffer,data);
-        reset_written(pdata);
-    }
 
-    if(pdata->columns <= 0 || pdata->rows <= 0) {
-        int rows;
-        int columns;
-        setDimensions(buffer,data,&rows,&columns);
-//        //TODO START A GAME, este dorobit vyber pozicii
-//        char* action = "[READY]";
-//        sprintf(buffer, "%s%s: ", pdata->userName,action);
-//        write(pdata->socket, buffer, strlen(buffer) + 1);
-        reset_written(pdata);
-
-    }
-
-    checkIfReady(buffer,data);
-    reset_written(pdata);
-
-    printf("After writeCodeReady\n");
-
-    fd_set inputs;
-    FD_ZERO(&inputs);
-    struct timeval tv;
-    tv.tv_usec = 0;
-    while(!data_isStopped(pdata)) {
-        tv.tv_sec = 1;
-        FD_SET(STDIN_FILENO, &inputs);
-        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
-        if (FD_ISSET(STDIN_FILENO, &inputs)) {
-
-            sprintf(buffer, "%s: ", pdata->userName);
-            char *textStart = buffer + (userNameLength + 2);
-            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + 2), stdin) > 0) {
-                char *pos = strchr(textStart, '\n');
-                if (pos != NULL) {
-                    *pos = '\0';
-                }
-                write(pdata->socket, buffer, strlen(buffer) + 1);
-
-                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
-                    printf("Koniec komunikacie.\n");
-                    data_stop(pdata);
-
-                }
-            }
-        }
-    }
+//    fd_set inputs;
+//    FD_ZERO(&inputs);
+//    struct timeval tv;
+//    tv.tv_usec = 0;
+//    while(!data_isStopped(pdata)) {
+//        tv.tv_sec = 1;
+//        FD_SET(STDIN_FILENO, &inputs);
+//        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
+//        if (FD_ISSET(STDIN_FILENO, &inputs)) {
+//
+//            sprintf(buffer, "%s: ", pdata->userName);
+//            char *textStart = buffer + (userNameLength + 2);
+//            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + 2), stdin) > 0) {
+//                char *pos = strchr(textStart, '\n');
+//                if (pos != NULL) {
+//                    *pos = '\0';
+//                }
+//                write(pdata->socket, buffer, strlen(buffer) + 1);
+//
+//                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+//                    printf("Koniec komunikacie.\n");
+//                    data_stop(pdata);
+//
+//                }
+//            }
+//        }
+//    }
 
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 

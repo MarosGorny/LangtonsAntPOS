@@ -11,8 +11,8 @@
 #include <stdbool.h>
 
 
-
-char* setDimensions(char* buffer, void* data, int* rows, int* columns);
+void printLog(char *str);
+char* setDimensions(char* buffer, void* data);
 LOADING_TYPE setLoadingType(char* buffer,void *data);
 LOGIC_TYPE setLogicType(char* buffer,void* data);
 int setNumberOfAnts(char* buffer,void* data);
@@ -24,5 +24,6 @@ void initBoxRandom(BOX* boxData, int chanceOfBlackBox);
 void initBoxTerminalInput(DISPLAY* display);
 void chooseAntsPosition(int rows,int columns, ANT* antData);
 bool checkIfReady(char* buffer,void *data);
+
 
 #endif //LANGTONSANTPOS_SETTINGS_H

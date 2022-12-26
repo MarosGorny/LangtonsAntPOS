@@ -87,31 +87,70 @@ LOADING_TYPE setLoadingType(char* buffer,void *data) {
         }
 }
 
-LOGIC_TYPE setLogicType() {
-    char buffer[100];
-    while(true) {
+LOGIC_TYPE setLogicType(char* buffer,void* data) {
+    DATA *pdata = (DATA *)data;
+    int userNameLength = strlen(pdata->userName);
+    fd_set inputs;
+    FD_ZERO(&inputs);
+    struct timeval tv;
+    tv.tv_usec = 0;
         printf("\nWhich logic of ants do you want? [write number and press enter]\n");
         printf("1: Direct logic.\n");
         printf("2: Inverted logic.\n");
         printf("Q: Quit simulation\n");
-        scanf("%s",buffer);
+        //scanf("%s",buffer);
 
-        switch (buffer[0]) {
-            case '1':
-                printf("Logic of ants is direct.\n");
-                return DIRECT;
-            case '2':
-                printf("Logic of ants is inverted.\n");
-                return INVERT;
-            case'q':
-            case'Q':
-                printf("Closing simulation...\n");
-                return NOT_SELECTED_ANTS_LOGIC;
-            default:
-                printf("Selection is unknown. Try again please.\n");
-                break;
+    while(!data_isStopped(pdata)) {
+
+        if(data_isWritten(pdata)) {
+            break;
+        }
+        tv.tv_sec = 1;
+        FD_SET(STDIN_FILENO, &inputs);
+        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
+        char* action = "[Logic type]";
+        int countCharAfterName = 2 + strlen(action);
+        if (FD_ISSET(STDIN_FILENO, &inputs)) {
+
+            sprintf(buffer, "%s%s: ", pdata->userName, action);
+            char *textStart = buffer + (userNameLength + countCharAfterName);
+            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), stdin) > 0) {
+                char *pos = strchr(textStart, '\n');
+                if (pos != NULL) {
+                    *pos = '\0';
+                }
+                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+                    printf("Koniec komunikacie.\n");
+                    data_stop(pdata);
+                } else {
+                    LOGIC_TYPE tempLogicType = 100;
+                    switch (textStart[0]) {
+                        case '1':
+                            printf("Logic of ants is direct.\n");
+                            tempLogicType = DIRECT;
+                            break;
+                        case '2':
+                            printf("Logic of ants is inverted.\n");
+                            tempLogicType =  INVERT;
+                            break;
+                        case 'q':
+                        case 'Q':
+                            printf("Closing simulation...\n");
+                            tempLogicType =  NOT_SELECTED_ANTS_LOGIC;
+                            break;
+                        default:
+                            printf("Selection is unknown. Try again please.\n");
+                            break;
+                    }
+                    if (tempLogicType != 100) {
+                        write(pdata->socket, buffer, strlen(buffer) + 1);
+                        return tempLogicType;
+                    }
+                }
+            }
         }
     }
+
 }
 
 int setNumberOfAnts(char* buffer,void* data) {
@@ -153,9 +192,63 @@ int setNumberOfAnts(char* buffer,void* data) {
                 } else {
                     int temp = atoi(textStart);
                     if(temp > 0) {
+
                         write(pdata->socket, buffer, strlen(buffer) + 1);
+
                         data_written(pdata);
                         return atoi(textStart);
+                    }
+                }
+                printf("p\n");
+            }
+        }
+    }
+}
+
+void * setDimensions(char* buffer, void* data, int* rows, int* columns) {
+    DATA *pdata = (DATA *)data;
+    int userNameLength = strlen(pdata->userName);
+
+    printf("\nSelect dimensions of ground, [write rows and columns, divided by space\n");
+    fd_set inputs;
+    FD_ZERO(&inputs);
+    struct timeval tv;
+    tv.tv_usec = 0;
+    while(!data_isStopped(pdata)) {
+        if(data_isWritten(pdata)) {
+            break;
+        }
+        //printf("x\n");
+        tv.tv_sec = 1;
+        FD_SET(STDIN_FILENO, &inputs);
+        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
+        char* action = "[Dimensions]";
+        int countCharAfterName = 2 + strlen(action);
+        if (FD_ISSET(STDIN_FILENO, &inputs)) {
+            sprintf(buffer, "%s%s: ", pdata->userName,action);
+            char *textStart = buffer + (userNameLength + countCharAfterName);
+            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), stdin) > 0) {
+                char *pos = strchr(textStart, '\n');
+                if (pos != NULL) {
+                    *pos = '\0';
+                }
+
+                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+                    write(pdata->socket, buffer, strlen(buffer) + 1);
+                    printf("Koniec komunikacie.\n");
+                    data_stop(pdata);
+                } else {
+                    char *columnsCharPointer = strchr(textStart,' ');
+                    *rows = atoi(textStart);
+                    if(columnsCharPointer == NULL) {
+                        *columns = atoi(textStart);
+                    } else {
+                        *columns = atoi(columnsCharPointer);
+                    }
+                    if(*columns > 0 && *rows > 0) {
+                        write(pdata->socket, buffer, strlen(buffer) + 1);
+                        data_written(pdata);
+                        return NULL;
                     }
                 }
                 printf("p\n");

@@ -13,7 +13,7 @@
 
 
 LOADING_TYPE setLoadingType(char* buffer,void *data);
-LOGIC_TYPE setLogicType();
+LOGIC_TYPE setLogicType(char* buffer,void* data);
 int setNumberOfAnts(char* buffer,void* data);
 void getNumberRowsCollumns(FILE* file,int* rows,int* columns);
 int getChanceOfBlackBox();

@@ -112,7 +112,7 @@ int main(int argc,char* argv[]) {
 
 
     //loadingType = setLoadingType(NULL);
-    logicType = setLogicType();
+    //logicType = setLogicType();
     //numberOfAnts = setNumberOfAnts();
 
     if(loadingType == FILE_INPUT ) {

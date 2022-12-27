@@ -42,6 +42,7 @@ typedef struct data {
     char userName[USER_LENGTH + 1];
     pthread_mutex_t mutex;
     int socket;
+    int socket2;
     int stop;
     int continueSimulation;
 

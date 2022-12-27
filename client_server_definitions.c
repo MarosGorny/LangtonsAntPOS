@@ -66,6 +66,7 @@ void* writeMsgToAllParticipants(DATA* pdata) {
 }
 
 bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart) {
+    printLog("writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart)");
     if(actionCode == NUMBER_OF_ANTS_ACTION) {
         int temp = atoi(textStart);
         if(temp > 0) {
@@ -207,12 +208,8 @@ bool checkIfPause(char* buffer,DATA *pdata) {
 
 bool checkIfContinue(char* buffer,DATA *pdata) {
     printLog("bool checkIfContinue(char* buffer,DATA *pdata)");
-    printf("BUFFER-%s\n",buffer);
     char *posSemi = strchr(buffer, ':');
-    printf("1\n");
-    printf("%s\n",posSemi+1);
     char *pos = strstr(posSemi + 1, ":continue");
-    printf("2\n");
     if (pos != NULL && pos - posSemi == 2 && *(pos + strlen(":continue")) == '\0') {
         *(pos - 2) = '\0';
         printf("Pouzivatel %s chce pokracovat.\n", buffer);
@@ -223,7 +220,6 @@ bool checkIfContinue(char* buffer,DATA *pdata) {
         return true;
     }
     else {
-        printf("3\n");
         return false;
     }
 }
@@ -324,21 +320,53 @@ void makeAction(char* buffer, DATA *pdata) {
         memcpy( target, posActionStart, posActionEnd - posActionStart +1);
         target[posActionEnd - posActionStart + 1] = '\0';
 
+        if (strcmp(target,"[Shared date state]") == 0) {
+            //LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
+            //pdata->logicType = logicType;
+            //printf("Changed logic type: %d\n",pdata->logicType);
+
+
+            // Extract the first token
+            char* token = strtok(posActionEnd+2," ");
+            // loop through the string to extract all other tokens
+            for (int i = 0; i < 6; i++) {
+                int tempNumber = atoi(token);
+                if(i == 0) {
+                    pdata->continueSimulation = tempNumber;
+                } else if(i == 1) {
+                    pdata->columns = tempNumber;
+                } else if(i == 2) {
+                    pdata->rows = tempNumber;
+                } else if(i ==3) {
+                    pdata->numberOfAnts = tempNumber;
+                } else if (i ==4) {
+                    pdata->loadingType = tempNumber;
+                } else if (i == 5) {
+                    pdata->logicType = tempNumber;
+                }
+                token = strtok(NULL, " ");
+            }
+        }
+        printData(pdata);
+
         if (strcmp(target,"[Number of ants]") == 0) {
             pdata->numberOfAnts = atoi(posActionEnd + 2);
             printf("Changed number of ants: %d\n",pdata->numberOfAnts);
+            data_written(pdata);
         }
 
         if (strcmp(target,"[Loading type]") == 0) {
             LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionEnd + 2) - 1;
             pdata->loadingType = loadingType;
             printf("Changed loading type: %d\n",pdata->loadingType);
+            data_written(pdata);
         }
 
         if (strcmp(target,"[Logic type]") == 0) {
             LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
             pdata->logicType = logicType;
             printf("Changed logic type: %d\n",pdata->logicType);
+            data_written(pdata);
         }
 
         if (strcmp(target,"[Dimensions]") == 0) {
@@ -353,6 +381,7 @@ void makeAction(char* buffer, DATA *pdata) {
             pdata->rows = atoi(posActionEnd+2);
 
             printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
+            data_written(pdata);
         }
 
         if (strcmp(target,"[READY]") == 0) {
@@ -361,6 +390,7 @@ void makeAction(char* buffer, DATA *pdata) {
             if (temp == 1) {
                 printf("ANTS ARE READY\n");
                 pthread_cond_signal(&pdata->startGame);
+                data_written(pdata);
             } else {
                 printf("ANTS ARE NOT READY\n");
             }
@@ -376,16 +406,41 @@ void makeAction(char* buffer, DATA *pdata) {
     free( target );
 }
 
-void data_init(DATA *data, const char* userName, const int socket) {
+void data_init(DATA *data, const char* userName, const int socket,const int socket2) {
     printLog("void data_init(DATA *data, const char* userName, const int socket)");
+    data->socket = socket;
+    data->socket2 = socket2;
+    data->stop = 0;
+    data->continueSimulation = 1;
+    data->written = 0;
+    data->userName[USER_LENGTH] = '\0';
+    data->rows = 0;
+    data->columns = 0;
+    data->numberOfAnts = 0;
+    data->loadingType = NOT_SELECTED_LOADING_TYPE;
+    data->logicType = NOT_SELECTED_ANTS_LOGIC;
+
+    strncpy(data->userName, userName, USER_LENGTH);
+    pthread_mutex_init(&data->mutex, NULL);
+    pthread_mutex_init(&data->writtenMutex, NULL);
+    pthread_cond_init(&data->startGame,NULL);
+    printf("PREDDD\n");
+    pthread_cond_init(&data->continueSimCond,NULL);
+    printf("PREDDD\n");
+}
+
+void data_initClient(DATA *data, const char* userName, const int socket) {
+    printLog("void data_initClient(DATA *data, const char* userName, const int socket)");
     data->socket = socket;
     data->stop = 0;
     data->continueSimulation = 1;
     data->written = 0;
     data->userName[USER_LENGTH] = '\0';
-    data->rows = -1;
-    data->columns = -1;
-    data->numberOfAnts = -1;
+    data->rows = data->rows ? data->rows : 0;
+    data->columns = data->columns ? data->columns : 0;
+    data->numberOfAnts = data->numberOfAnts ? data->numberOfAnts : 0;
+
+    if(data->loadingType == NOT_SELECTED_LOADING_TYPE) {}
     data->loadingType = NOT_SELECTED_LOADING_TYPE;
     data->logicType = NOT_SELECTED_ANTS_LOGIC;
 
@@ -482,7 +537,9 @@ void *data_readData(void *data) {
 //        read(pdata->socket,&abc,sizeof (abc));
 //        printf("%d",abc);
         printf("%s\n",buffer);
+
         if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
+
             if(checkIfQuit(buffer,pdata)) {
 
             } else if(checkIfPause(buffer,pdata)) {
@@ -496,7 +553,7 @@ void *data_readData(void *data) {
 
             printf("Before action\n");
             makeAction(buffer,pdata);
-            data_written(pdata);
+
         }
         else {
             printf("ELSE STOP\n");
@@ -506,6 +563,43 @@ void *data_readData(void *data) {
 
     return NULL;
 }
+void writeStateOfSharedData(DATA* pdata, int socket){
+    printLog("void writeStateOfSharedData(DATA* pdata, int socket)");
+    char buffer[BUFFER_LENGTH + 1];
+    buffer[BUFFER_LENGTH] = '\0';
+    int userNameLength = strlen(pdata->userName);
+    char* action = "[Shared date state]";
+    sprintf(buffer, "%s%s: %d %d %d %d %d %d", pdata->userName\
+                                                        ,action\
+                                                        ,pdata->continueSimulation\
+                                                        ,pdata->columns\
+                                                        ,pdata->rows\
+                                                        ,pdata->numberOfAnts\
+                                                        ,pdata->loadingType\
+                                                        ,pdata->logicType);
+    char *pos = strchr(buffer, '\n');
+    if (pos != NULL) {
+        *pos = '\0';
+    }
+    write(socket, buffer, strlen(buffer) + 1);
+    printf("State data sended\n");
+};
+void *data_writeDataClient(void *data) {
+    printLog("void *data_writeData(void *data)");
+    DATA *pdata = (DATA *)data;
+
+    //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
+    fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
+    printData(pdata);
+
+    initSimulationSetting(pdata);
+    writeMsgToAllParticipants(pdata);
+
+    fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
+
+    return NULL;
+}
+
 
 void *data_writeData(void *data) {
     printLog("void *data_writeData(void *data)");
@@ -513,12 +607,12 @@ void *data_writeData(void *data) {
 
     //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
+    printData(pdata);
+    writeStateOfSharedData(pdata,pdata->socket);
+
 
     initSimulationSetting(pdata);
     writeMsgToAllParticipants(pdata);
-
-
-
 
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 
@@ -533,6 +627,17 @@ void printError(char *str) {
         fprintf(stderr, "%s\n", str);
     }
     exit(EXIT_FAILURE);
+}
+
+void printData(DATA* pdata) {
+    printLog("printData(DATA* pdata)");
+    printf( "%s: con:%d col:%d row:%d ants:%d loaTyp%d logTyp%d\n", pdata->userName\
+                                                        ,pdata->continueSimulation\
+                                                        ,pdata->columns\
+                                                        ,pdata->rows\
+                                                        ,pdata->numberOfAnts\
+                                                        ,pdata->loadingType\
+                                                        ,pdata->logicType);
 }
 
 

@@ -41,8 +41,13 @@ typedef enum actionCode {
 void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode);
 bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode,char* buffer, char* textStart);
 
+void writeStateOfSharedData(DATA* pdata, int socket);
+
+void *data_writeDataClient(void *data);
+void printData(DATA* pdata);
 char* printActionQuestionByCode(ACTION_CODE actionCode);
-void data_init(DATA *data, const char* userName, const int socket);
+void data_init(DATA *data, const char* userName, int socket1,int socket2);
+void data_initClient(DATA *data, const char* userName, int socket);
 void data_destroy(DATA *data);
 void data_stop(DATA *data);
 int data_isStopped(DATA *data);

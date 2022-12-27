@@ -17,7 +17,7 @@
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
 #define BUFSIZE 4096
-#define SERVER_BACKLOG 100
+#define SERVER_BACKLOG 2
 
 void* antSimulation(void* data) {
     // split into frames from wiki
@@ -206,6 +206,7 @@ void* antSimulation(void* data) {
 
 int main(int argc,char* argv[]) {
 
+    int numberOfClients = 0;
     //////////////////////////////////////////
     ////SERVER
     printLog("main: server");
@@ -218,7 +219,7 @@ int main(int argc,char* argv[]) {
     }
     char *userName = argv[2];
 
-    int serverSocket,clientSocket,addr_size;
+    int serverSocket,clientSocket,clientSocket2,addr_size;
     SA_IN  server_addr, client_addr;
 
     //vytvorenie TCP socketu <sys/socket.h>
@@ -242,46 +243,49 @@ int main(int argc,char* argv[]) {
         printError("Error - listen.");
     }
 
-    while (1) {
-        printf("Waiting for connections..\n");
+    printf("Waiting for connections..\n");
 
-        //wait for, and eventually accept an incoming connection
-        addr_size = sizeof(SA_IN);
-        if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
-            printError("Error - accept");
-        }
-        printf("Client connected!\n");
-
-        //uzavretie pasivneho socketu <unistd.h>
-        close(serverSocket);
-
-
-        //inicializacia dat zdielanych medzi vlaknami
-        DATA data;
-        data_init(&data, userName, clientSocket);
-
-
-        //inicializacia vlakna na ktorom bude prebiehat simulacia
-        pthread_t gameThread;
-        pthread_create(&gameThread,NULL,antSimulation,(void* )&data);
-
-        //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
-        pthread_t thread;
-        pthread_create(&thread, NULL, data_writeData, (void *)&data);
-
-        //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
-        data_readData((void *)&data);
-
-        //pockame na skoncenie zapisovacieho vlakna <pthread.h> a vlakna na simulacia mravcov
-        pthread_join(gameThread,NULL);
-        pthread_join(thread, NULL);
-        data_destroy(&data);
-
-        //uzavretie socketu klienta <unistd.h>
-        close(clientSocket);
-
-        break;
+    //wait for, and eventually accept an incoming connection
+    addr_size = sizeof(SA_IN);
+    if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
+        printError("Error - accept");
     }
+    printf("Client connected!\n");
+//    if((clientSocket2 = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
+//        printError("Error - accept");
+//    }
+    printf("Client connected!\n");
+
+    //uzavretie pasivneho socketu <unistd.h>
+    //TODO ZMAZAL SOM KVOLI TUTORIALU
+    close(serverSocket);
+
+
+    //inicializacia dat zdielanych medzi vlaknami
+    DATA data;
+    data_init(&data, userName, clientSocket,0);
+
+
+    //inicializacia vlakna na ktorom bude prebiehat simulacia
+    pthread_t gameThread;
+    pthread_create(&gameThread,NULL,antSimulation,(void* )&data);
+
+    //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
+    pthread_t thread;
+    pthread_create(&thread, NULL, data_writeData, (void *)&data);
+
+    //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
+    data_readData((void *)&data);
+
+    //pockame na skoncenie zapisovacieho vlakna <pthread.h> a vlakna na simulacia mravcov
+    pthread_join(gameThread,NULL);
+    pthread_join(thread, NULL);
+    data_destroy(&data);
+
+    //uzavretie socketu klienta <unistd.h>
+    close(clientSocket);
+
+
     return (EXIT_SUCCESS);
 
     ////END-SERVER

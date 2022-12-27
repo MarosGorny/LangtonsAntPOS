@@ -13,6 +13,38 @@
 
 char *endMsg = ":end";
 
+void* writeMsgToAllParticipants(DATA* pdata) {
+    char buffer[BUFFER_LENGTH + 1];
+    buffer[BUFFER_LENGTH] = '\0';
+    int userNameLength = strlen(pdata->userName);
+    fd_set inputs;
+    FD_ZERO(&inputs);
+    struct timeval tv;
+    tv.tv_usec = 0;
+    while(!data_isStopped(pdata)) {
+        tv.tv_sec = 1;
+        FD_SET(STDIN_FILENO, &inputs);
+        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
+        if (FD_ISSET(STDIN_FILENO, &inputs)) {
+
+            sprintf(buffer, "%s: ", pdata->userName);
+            char *textStart = buffer + (userNameLength + 2);
+            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + 2), stdin) > 0) {
+                char *pos = strchr(textStart, '\n');
+                if (pos != NULL) {
+                    *pos = '\0';
+                }
+                write(pdata->socket, buffer, strlen(buffer) + 1);
+
+                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+                    printf("Koniec komunikacie.\n");
+                    data_stop(pdata);
+                }
+            }
+        }
+    }
+}
+
 bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart) {
     if(actionCode == NUMBER_OF_ANTS_ACTION) {
         int temp = atoi(textStart);
@@ -111,6 +143,9 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
             //reset_written(pdata);
             return true;
         }
+    } else {
+        write(pdata->socket, buffer, strlen(buffer) + 1);
+        return false;
     }
     return false;
 
@@ -157,7 +192,7 @@ char* printActionQuestionByCode(ACTION_CODE actionCode) {
         return "[READY]";
     }
 
-    return NULL;
+    return "";
 }
 
 void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
@@ -210,7 +245,7 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
 }
 
 void makeAction(char* buffer, DATA *pdata) {
-
+    printLog("void makeAction(char* buffer, DATA *pdata)");
     char *target = NULL;
     char *posActionStart = strchr(buffer, '[');
     char *posActionEnd;
@@ -223,49 +258,50 @@ void makeAction(char* buffer, DATA *pdata) {
         target = ( char * )malloc( posActionEnd - posActionStart + 2 );
         memcpy( target, posActionStart, posActionEnd - posActionStart +1);
         target[posActionEnd - posActionStart + 1] = '\0';
-    }
 
-    if (strcmp(target,"[Number of ants]") == 0) {
-        pdata->numberOfAnts = atoi(posActionEnd + 2);
-        printf("Changed number of ants: %d\n",pdata->numberOfAnts);
-    }
-
-    if (strcmp(target,"[Loading type]") == 0) {
-        LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionEnd + 2);
-        pdata->loadingType = loadingType;
-        printf("Changed loading type: %d\n",pdata->loadingType);
-    }
-
-    if (strcmp(target,"[Logic type]") == 0) {
-        LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2);
-        pdata->logicType = logicType;
-        printf("Changed logic type: %d\n",pdata->logicType);
-    }
-
-    if (strcmp(target,"[Dimensions]") == 0) {
-        char *columnsCharPointer = strchr(posActionEnd+3,' ');
-        if ( columnsCharPointer ) printf( "%s\n", columnsCharPointer );
-        if(columnsCharPointer == NULL) {
-            pdata->columns = atoi(posActionEnd+2);
-        } else {
-            pdata->columns = atoi(columnsCharPointer);
+        if (strcmp(target,"[Number of ants]") == 0) {
+            pdata->numberOfAnts = atoi(posActionEnd + 2);
+            printf("Changed number of ants: %d\n",pdata->numberOfAnts);
         }
-        if ( posActionEnd+2 ) printf( "%s\n", posActionEnd+2 );
-        pdata->rows = atoi(posActionEnd+2);
 
-        printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
-    }
+        if (strcmp(target,"[Loading type]") == 0) {
+            LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionEnd + 2) - 1;
+            pdata->loadingType = loadingType;
+            printf("Changed loading type: %d\n",pdata->loadingType);
+        }
 
-    if (strcmp(target,"[READY]") == 0) {
-        char *columnsCharPointer = strchr(posActionEnd,' ');
-        int temp = atoi(columnsCharPointer);
-        if (temp == 1) {
-            printf("ANTS ARE READY\n");
-            pthread_cond_signal(&pdata->startGame);
-        } else {
-            printf("ANTS ARE NOT READY\n");
+        if (strcmp(target,"[Logic type]") == 0) {
+            LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
+            pdata->logicType = logicType;
+            printf("Changed logic type: %d\n",pdata->logicType);
+        }
+
+        if (strcmp(target,"[Dimensions]") == 0) {
+            char *columnsCharPointer = strchr(posActionEnd+3,' ');
+            if ( columnsCharPointer ) printf( "%s\n", columnsCharPointer );
+            if(columnsCharPointer == NULL) {
+                pdata->columns = atoi(posActionEnd+2);
+            } else {
+                pdata->columns = atoi(columnsCharPointer);
+            }
+            if ( posActionEnd+2 ) printf( "%s\n", posActionEnd+2 );
+            pdata->rows = atoi(posActionEnd+2);
+
+            printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
+        }
+
+        if (strcmp(target,"[READY]") == 0) {
+            char *columnsCharPointer = strchr(posActionEnd,' ');
+            int temp = atoi(columnsCharPointer);
+            if (temp == 1) {
+                printf("ANTS ARE READY\n");
+                pthread_cond_signal(&pdata->startGame);
+            } else {
+                printf("ANTS ARE NOT READY\n");
+            }
         }
     }
+
     //if ( target ) printf( "%s\n", target );
 
     pthread_mutex_unlock(&pdata->mutex);
@@ -367,7 +403,7 @@ int data_isStopped(DATA *data) {
 }
 
 void *data_readData(void *data) {
-    printf("data_readData\n");
+    printLog("void *data_readData(void *data)");
     DATA *pdata = (DATA *)data;
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
@@ -384,7 +420,6 @@ void *data_readData(void *data) {
             data_written(pdata);
         }
         else {
-            //printf("ZLY STOP\n");
             data_stop(pdata);
         }
     }
@@ -400,36 +435,10 @@ void *data_writeData(void *data) {
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
 
     initSimulationSetting(pdata);
+    writeMsgToAllParticipants(pdata);
 
 
 
-//    fd_set inputs;
-//    FD_ZERO(&inputs);
-//    struct timeval tv;
-//    tv.tv_usec = 0;
-//    while(!data_isStopped(pdata)) {
-//        tv.tv_sec = 1;
-//        FD_SET(STDIN_FILENO, &inputs);
-//        select(STDIN_FILENO + 1, &inputs, NULL, NULL, &tv);
-//        if (FD_ISSET(STDIN_FILENO, &inputs)) {
-//
-//            sprintf(buffer, "%s: ", pdata->userName);
-//            char *textStart = buffer + (userNameLength + 2);
-//            while (fgets(textStart, BUFFER_LENGTH - (userNameLength + 2), stdin) > 0) {
-//                char *pos = strchr(textStart, '\n');
-//                if (pos != NULL) {
-//                    *pos = '\0';
-//                }
-//                write(pdata->socket, buffer, strlen(buffer) + 1);
-//
-//                if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
-//                    printf("Koniec komunikacie.\n");
-//                    data_stop(pdata);
-//
-//                }
-//            }
-//        }
-//    }
 
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 

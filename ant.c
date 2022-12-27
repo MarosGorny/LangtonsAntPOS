@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include "ant.h"
 
 void* antF(void* arg) {
@@ -17,7 +18,7 @@ void* antF(void* arg) {
     printf("Starting positon\n");
 
     while (antIsAlive) {
-
+        sleep(1);
         counter++;
         int antsOrgX = ant->x;
         int antsOrgY = ant->y;
@@ -112,6 +113,12 @@ void* antF(void* arg) {
         printf("Ant[%d] waiting for barrier second[%d]\n",ant->id,antsDisplay->actualNumberOfAnts);
         pthread_barrier_wait(originalBarrier);
         printf("\n");
+
+        if(antsDisplay->dataSocket->stop == 1) {
+            //TODO SPRAVIT TO NA COND WAIT a mozem to aj pauzovat (pouzit aj broadcast)
+            //TODO TU MOZU VZNIKNUT MEMORY LEAKS, SPRAVIT TO LEPSIE
+            pthread_exit(NULL);
+        }
 
     }
 

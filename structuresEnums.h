@@ -6,6 +6,11 @@
 #define LANGTONSANTPOS_STRUCTURESENUMS_H
 
 #include "pthread.h"
+//#include "client_server_definitions.h"
+
+#define USER_LENGTH 10
+#define BUFFER_LENGTH 300
+extern char *endMsg;
 
 typedef enum loadingType {
     NOT_SELECTED_LOADING_TYPE = -1,
@@ -33,6 +38,25 @@ typedef enum backgroundColor {
     BLACK = 1,
 }BACKGROUND_COLOR;
 
+typedef struct data {
+    char userName[USER_LENGTH + 1];
+    pthread_mutex_t mutex;
+    int socket;
+    int stop;
+
+    int columns;
+    int rows;
+    int numberOfAnts;
+
+    LOADING_TYPE loadingType;
+    LOGIC_TYPE logicType;
+    pthread_mutex_t writtenMutex;
+
+
+    int written;
+    pthread_cond_t startGame;
+} DATA;
+
 typedef  struct box{
     BACKGROUND_COLOR color;
     int x;
@@ -53,6 +77,7 @@ typedef struct display{
 
     LOGIC_TYPE logicType;
     BOX*** box;
+    DATA* dataSocket;
 }DISPLAY;
 
 typedef struct ant {

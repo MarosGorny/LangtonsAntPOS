@@ -60,7 +60,7 @@ void* antSimulation(void* data) {
     }
     printf("Barrier\n");
     //Creating display
-    DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType};
+    DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType, NULL,pdata};
     //Creating 2D dynamic array of boxes , pointer of pointers
     display.box = malloc(rows*sizeof (BOX**));
     //Creating mutexes

@@ -43,6 +43,7 @@ typedef struct data {
     pthread_mutex_t mutex;
     int socket;
     int stop;
+    int continueSimulation;
 
     int columns;
     int rows;
@@ -55,6 +56,7 @@ typedef struct data {
 
     int written;
     pthread_cond_t startGame;
+    pthread_cond_t continueSimCond;
 } DATA;
 
 typedef  struct box{
@@ -74,6 +76,7 @@ typedef struct display{
     pthread_barrier_t* barriers;
     pthread_barrier_t* mainBarrier;
     pthread_mutex_t* mut;
+
 
     LOGIC_TYPE logicType;
     BOX*** box;

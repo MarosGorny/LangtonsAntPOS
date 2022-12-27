@@ -14,6 +14,7 @@
 char *endMsg = ":end";
 
 void* writeMsgToAllParticipants(DATA* pdata) {
+    printLog("void* writeMsgToAllParticipants(DATA* pdata)");
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     int userNameLength = strlen(pdata->userName);
@@ -34,11 +35,30 @@ void* writeMsgToAllParticipants(DATA* pdata) {
                 if (pos != NULL) {
                     *pos = '\0';
                 }
+                printf("Written msg: %s\n",buffer);
                 write(pdata->socket, buffer, strlen(buffer) + 1);
 
                 if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
                     printf("Koniec komunikacie.\n");
                     data_stop(pdata);
+                }
+
+                if (strstr(textStart, ":pause") == textStart && strlen(textStart) == strlen(":pause")) {
+                    printf("Simulacia pozastavena.\n");
+                    pthread_mutex_lock(&pdata->mutex);
+                    pdata->continueSimulation = 0;
+                    printf("Continue simulation = 0\n");
+                    pthread_mutex_unlock(&pdata->mutex);
+                }
+
+                if (strstr(textStart, ":continue") == textStart && strlen(textStart) == strlen(":continue")) {
+                    printf("Simulacia pokracuje.\n");
+                    pthread_mutex_lock(&pdata->mutex);
+                    pdata->continueSimulation = 1;
+                    printf("Continue simulation = 1\n");
+                    pthread_cond_broadcast(&pdata->continueSimCond);
+                    printf("AFter broadcast\n");
+                    pthread_mutex_unlock(&pdata->mutex);
                 }
             }
         }
@@ -152,6 +172,7 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
 }
 
 bool checkIfQuit(char* buffer,DATA *pdata) {
+    printLog("bool checkIfQuit(char* buffer,DATA *pdata)");
     char *posSemi = strchr(buffer, ':');
     char *pos = strstr(posSemi + 1, endMsg);
     if (pos != NULL && pos - posSemi == 2 && *(pos + strlen(endMsg)) == '\0') {
@@ -164,6 +185,49 @@ bool checkIfQuit(char* buffer,DATA *pdata) {
         return false;
     }
 }
+
+bool checkIfPause(char* buffer,DATA *pdata) {
+    printLog("bool checkIfPause(char* buffer,DATA *pdata)");
+    char *posSemi = strchr(buffer, ':');
+    char *pos = strstr(posSemi + 1, ":pause");
+    if (pos != NULL && pos - posSemi == 2 && *(pos + strlen(":pause")) == '\0') {
+        *(pos - 2) = '\0';
+        printf("Pouzivatel %s pauzol simulaciu.\n", buffer);
+        printf("%d\n",pthread_mutex_lock(&pdata->mutex));
+        pdata->continueSimulation = 0;
+        printf("Contunie simulation = 0\n");
+        pthread_mutex_unlock(&pdata->mutex);
+        printf("Po pauznuti\n");
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+bool checkIfContinue(char* buffer,DATA *pdata) {
+    printLog("bool checkIfContinue(char* buffer,DATA *pdata)");
+    printf("BUFFER-%s\n",buffer);
+    char *posSemi = strchr(buffer, ':');
+    printf("1\n");
+    printf("%s\n",posSemi+1);
+    char *pos = strstr(posSemi + 1, ":continue");
+    printf("2\n");
+    if (pos != NULL && pos - posSemi == 2 && *(pos + strlen(":continue")) == '\0') {
+        *(pos - 2) = '\0';
+        printf("Pouzivatel %s chce pokracovat.\n", buffer);
+        pthread_mutex_lock(&pdata->mutex);
+        pdata->continueSimulation = 1;
+        pthread_cond_broadcast(&pdata->continueSimCond);
+        pthread_mutex_unlock(&pdata->mutex);
+        return true;
+    }
+    else {
+        printf("3\n");
+        return false;
+    }
+}
+
 
 char* printActionQuestionByCode(ACTION_CODE actionCode) {
 
@@ -227,6 +291,7 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
                 }
 
                 if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
+                    printf("Written msg before simulation: %s\n",buffer);
                     write(pdata->socket, buffer, strlen(buffer) + 1);
                     printf("End of communication.\n");
                     data_stop(pdata);
@@ -315,6 +380,7 @@ void data_init(DATA *data, const char* userName, const int socket) {
     printLog("void data_init(DATA *data, const char* userName, const int socket)");
     data->socket = socket;
     data->stop = 0;
+    data->continueSimulation = 1;
     data->written = 0;
     data->userName[USER_LENGTH] = '\0';
     data->rows = -1;
@@ -327,13 +393,16 @@ void data_init(DATA *data, const char* userName, const int socket) {
     pthread_mutex_init(&data->mutex, NULL);
     pthread_mutex_init(&data->writtenMutex, NULL);
     pthread_cond_init(&data->startGame,NULL);
-
+    printf("PREDDD\n");
+    pthread_cond_init(&data->continueSimCond,NULL);
+    printf("PREDDD\n");
 }
 
 void data_destroy(DATA *data) {
     pthread_mutex_destroy(&data->mutex);
     pthread_mutex_destroy(&data->writtenMutex);
     pthread_cond_destroy(&data->startGame);
+    pthread_cond_destroy(&data->continueSimCond);
 }
 
 void data_stop(DATA *data) {
@@ -412,14 +481,25 @@ void *data_readData(void *data) {
         bzero(buffer, BUFFER_LENGTH);
 //        read(pdata->socket,&abc,sizeof (abc));
 //        printf("%d",abc);
+        printf("%s\n",buffer);
         if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
-            if(!checkIfQuit(buffer,pdata)) {
+            if(checkIfQuit(buffer,pdata)) {
+
+            } else if(checkIfPause(buffer,pdata)) {
+
+            }  else if(checkIfContinue(buffer,pdata)) {
+
+            } else {
                 printf("%s \n", buffer);
             }
+
+
+            printf("Before action\n");
             makeAction(buffer,pdata);
             data_written(pdata);
         }
         else {
+            printf("ELSE STOP\n");
             data_stop(pdata);
         }
     }

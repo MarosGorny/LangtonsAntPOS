@@ -142,8 +142,11 @@ void* antSimulation(void* data) {
     for (int i = 0; i < numberOfAnts; i++) {
         //printf("22222222222222222\n");
         pthread_join(ants[i],&counter);
-        counterOfFinishedAnts += *((int*)counter);
-        free(counter);
+        if(counter != NULL) {
+            counterOfFinishedAnts += *((int*)counter);
+            free(counter);
+        }
+
     }
     //printf("333333333333333333333333333333333\n");
     printf("FINISHED ANTS %d\n",counterOfFinishedAnts);
@@ -192,7 +195,8 @@ void* antSimulation(void* data) {
     }
     //Destroy whole 2Darray
     free(display.box);
-    //pthread_barrier_destroy(barriers);
+
+
     pthread_mutex_destroy(&mainMut);
     //Destroying barrier
     for (int i = 0; i < numberOfAnts; i++) {

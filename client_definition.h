@@ -29,5 +29,6 @@ bool checkIfPause(char* buffer,DATA *pdata);
 bool checkIfContinue(char* buffer,DATA *pdata);
 void data_destroy(DATA *data);
 void printError(char *str);
+char* printActionQuestionByStep(int step);
 
 #endif //LANGTONSANTPOS_CLIENT_DEFINITION_H

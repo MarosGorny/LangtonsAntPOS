@@ -284,9 +284,13 @@ int main(int argc,char* argv[]) {
     DATA data;
     data_init(&data, userName);
     pthread_cond_t startListening[SERVER_BACKLOG];
+    pthread_cond_t updateClients = PTHREAD_COND_INITIALIZER;
     data.sockets = (int *) calloc(SERVER_BACKLOG, sizeof(int));
+    data.updateClients = updateClients;
     data.startListening = startListening;
     data.numberOfClients = 0;
+    data.step = 0;
+
 
 
 
@@ -303,11 +307,6 @@ int main(int argc,char* argv[]) {
     //vytvorenie vlakna  na citanie dat zo socketu
     pthread_t threadRead[SERVER_BACKLOG];
 
-
-
-    //data_readData((void *)&data);
-
-
     //v hlavnom vlakne sa budu prijimat novi clienti
     while (true) {
         int numberOfClients = data.numberOfClients;
@@ -315,14 +314,11 @@ int main(int argc,char* argv[]) {
         if ((clientSocket = accept(serverSocket, (SA *) &client_addr, (socklen_t *) &addr_size)) < 0) {
             printError("Error - accept");
         } else {
-            printf("ACCEPTED\n");
             data.sockets[numberOfClients] = clientSocket;
             data.numberOfClients++;
             writeStateOfSharedData(&data,data.sockets[numberOfClients]);
             pthread_create(&threadWrite[numberOfClients], NULL, data_writeData, (void *) &data);
-            printf("0\n");
             pthread_create(&threadRead[numberOfClients], NULL, data_readData, (void *) &data);
-            printf("1\n");
             pthread_cond_init(&data.startListening[numberOfClients], NULL);
 
             printf("Client[%d] connected = socket%d !\n", numberOfClients,clientSocket);

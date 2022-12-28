@@ -40,18 +40,23 @@ void writeStateOfSharedData(DATA* pdata, int socket){
 void *data_writeData(void *data) {
     printLog("void *data_writeData(void *data)");
     DATA *pdata = (DATA *)data;
-//    pthread_mutex_lock(&pdata->mutex);
-//    int idClient = pdata->numberOfClients - 1;
-//    pthread_mutex_unlock(&pdata->mutex);
+    pthread_mutex_lock(&pdata->mutex);
+    int idClient = pdata->numberOfClients - 1;
+    pthread_mutex_unlock(&pdata->mutex);
 
     //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     printData(pdata);
 
 
-//    pthread_mutex_lock(&pdata->mutex);
-//    pthread_cond_signal(&pdata->startListening[idClient]);
-//    pthread_mutex_unlock(&pdata->mutex);
+    while(true) {
+        pthread_mutex_lock(&pdata->mutex);
+        pthread_cond_wait(&pdata->updateClients,&pdata->mutex);
+        //pthread_cond_signal(&pdata->startListening[idClient]);
+        writeStateOfSharedData(pdata,pdata->sockets[idClient]);
+        pthread_mutex_unlock(&pdata->mutex);
+    }
+
 
 
 
@@ -104,6 +109,7 @@ void *data_readData(void *data) {
 
             printf("Before action\n");
             makeAction(buffer,pdata);
+            pthread_cond_broadcast(&pdata->updateClients);
 
         }
         else {
@@ -330,7 +336,7 @@ void* writeMsgToAllParticipants(DATA* pdata) {
 }
 
 int data_isStopped(DATA *data) {
-    printLog("int data_isStopped(DATA *data)");
+    //printLog("int data_isStopped(DATA *data)");
     int stop;
     pthread_mutex_lock(&data->mutex);
     stop = data->stop;

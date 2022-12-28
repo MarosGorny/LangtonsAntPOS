@@ -24,6 +24,7 @@ void data_initClient(DATA* data, const char* userName,int socket) {
     data->rows = data->rows ? data->rows : 0;
     data->columns = data->columns ? data->columns : 0;
     data->numberOfAnts = data->numberOfAnts ? data->numberOfAnts : 0;
+    data->step = 0;
 
     data->loadingType = NOT_SELECTED_LOADING_TYPE;
     data->logicType = NOT_SELECTED_ANTS_LOGIC;
@@ -67,11 +68,15 @@ void readInitData(DATA* pdata) {
     if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
     printf("BUFF----%s\n",buffer);
     makeAction(buffer,pdata);
+    printf("readInitData: INCREMENTIG STEP\n");
+    pdata->step++;
     }
     else {
         printf("ELSE STOP\n");
         data_stop(pdata);
     }
+
+    printActionQuestionByStep(pdata->step);
 
 
     //pred pokusom
@@ -117,13 +122,19 @@ void *data_readData(void *data) {
             }  else if(checkIfContinue(buffer,pdata)) {
 
             } else {
+
                 printf("%s \n", buffer);
+                printf("Before action\n");
+                makeAction(buffer,pdata);
+
+                pthread_mutex_lock(&pdata->mutex);
+                printf("data_readData: INCREMENTIG STEP\n");
+                pdata->step++;
+                printf("STEP: %d\n",pdata->step);
+                printActionQuestionByStep(pdata->step);
+                pthread_mutex_unlock(&pdata->mutex);
+
             }
-
-
-            printf("Before action\n");
-            makeAction(buffer,pdata);
-
         }
         else {
             printf("ELSE STOP\n");
@@ -137,15 +148,13 @@ void *data_readData(void *data) {
 
 void makeAction(char* buffer, DATA *pdata) {
     printLog("CLIENT: void makeAction(char* buffer, DATA *pdata)");
+    printf("STEP: %d\n",pdata->step);
     char *target = NULL;
     char *posActionStart = strchr(buffer, '[');
     char *posActionEnd;
 
-    printf("1\n");
-    printf("lockmutex: %d",pthread_mutex_lock(&pdata->mutex));
-    printf("22\n");
+    printf("lockmutex: %d\n",pthread_mutex_lock(&pdata->mutex));
     if (posActionStart != NULL) {
-        printf("2\n");
         //posActionStart += 1;
         posActionEnd = strchr(buffer, ']');
 
@@ -153,10 +162,10 @@ void makeAction(char* buffer, DATA *pdata) {
         memcpy( target, posActionStart, posActionEnd - posActionStart +1);
         target[posActionEnd - posActionStart + 1] = '\0';
 
-        if (strcmp(target,"[Shared date state]") == 0) {
-
-            //LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
-            //pdata->logicType = logicType;
+//        if (strcmp(target,"[Shared date state]") == 0) {
+        if(pdata->step == 0){
+            LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
+            pdata->logicType = logicType;
             printf("Changed Shared date state\n");
 
 
@@ -183,24 +192,26 @@ void makeAction(char* buffer, DATA *pdata) {
         }
         printData(pdata);
 
-        if (strcmp(target,"[Number of ants]") == 0) {
+//        if (strcmp(target,"[Number of ants]") == 0) {
+        if(pdata->step == 1) {
             pdata->numberOfAnts = atoi(posActionEnd + 2);
             printf("Changed number of ants: %d\n",pdata->numberOfAnts);
             data_written(pdata);
+            //data_written(pdata);
         }
 
         if (strcmp(target,"[Loading type]") == 0) {
             LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionEnd + 2) - 1;
             pdata->loadingType = loadingType;
             printf("Changed loading type: %d\n",pdata->loadingType);
-            data_written(pdata);
+            //data_written(pdata);
         }
 
         if (strcmp(target,"[Logic type]") == 0) {
             LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
             pdata->logicType = logicType;
             printf("Changed logic type: %d\n",pdata->logicType);
-            data_written(pdata);
+            //data_written(pdata);
         }
 
         if (strcmp(target,"[Dimensions]") == 0) {
@@ -215,7 +226,7 @@ void makeAction(char* buffer, DATA *pdata) {
             pdata->rows = atoi(posActionEnd+2);
 
             printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
-            data_written(pdata);
+            //data_written(pdata);
         }
 
         if (strcmp(target,"[READY]") == 0) {
@@ -230,12 +241,12 @@ void makeAction(char* buffer, DATA *pdata) {
             }
         }
     }
-    printf("3\n");
+    //printf("3\n");
 
     //if ( target ) printf( "%s\n", target );
 
     pthread_mutex_unlock(&pdata->mutex);
-    printf("After mutex unlock\n");
+    //printf("After mutex unlock\n");
 
 
     free( target );
@@ -243,36 +254,54 @@ void makeAction(char* buffer, DATA *pdata) {
 
 void initSimulationSetting(DATA* pdata) {
     printLog("void initSimulationSetting(DATA* pdata)");
+    printLog("\tSTEP");
+    printf("%d\n",pdata->step);
 
+    while(true) {
+        //if(pdata->numberOfAnts <= 0) {
+        if(pdata->step == 1) {
+            printf("in\n");
+            writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION);
+        }
 
-    if(pdata->numberOfAnts <= 0) {
-        writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION);
+        printLog("after: writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION)");
+        //if(pdata->loadingType == NOT_SELECTED_LOADING_TYPE) {
+        if(pdata->step == 2) {
+            printf("in\n");
+            writeToSocketByAction(pdata,LOADING_TYPE_ACTION);
+        }
+
+        printLog("after: writeToSocketByAction(pdata,LOADING_TYPE_ACTION)");
+        //if(pdata->logicType == NOT_SELECTED_ANTS_LOGIC) {
+        if(pdata->step == 3) {
+            printf("in\n");
+            writeToSocketByAction(pdata,LOGIC_TYPE_ACTION);
+        }
+
+        printLog("after: writeToSocketByAction(pdata,LOGIC_TYPE_ACTION)");
+        //if(pdata->columns <= 0 || pdata->rows <= 0) {
+        if(pdata->step == 4) {
+            printf("in\n");
+            writeToSocketByAction(pdata,DIMENSION_ACTION);
+        }
+
+        printLog("after: writeToSocketByAction(pdata,DIMENSION_ACTION)");
+        if(pdata->step == 5) {
+            printf("in\n");
+            writeToSocketByAction(pdata,READY_ACTION);
+            printf("BREAKING FROM:initSimulationSetting \n");
+        }
     }
 
-    printLog("after: writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION)");
-    if(pdata->loadingType == NOT_SELECTED_LOADING_TYPE) {
-        writeToSocketByAction(pdata,LOADING_TYPE_ACTION);
-    }
 
-    printLog("after: writeToSocketByAction(pdata,LOADING_TYPE_ACTION)");
-    if(pdata->logicType == NOT_SELECTED_ANTS_LOGIC) {
-        writeToSocketByAction(pdata,LOGIC_TYPE_ACTION);
-    }
 
-    printLog("after: writeToSocketByAction(pdata,LOGIC_TYPE_ACTION)");
-    if(pdata->columns <= 0 || pdata->rows <= 0) {
-        writeToSocketByAction(pdata,DIMENSION_ACTION);
-    }
-
-    printLog("after: writeToSocketByAction(pdata,DIMENSION_ACTION)");
-    writeToSocketByAction(pdata,READY_ACTION);
 }
-char* printActionQuestionByCode(ACTION_CODE actionCode) {
+char* printActionQuestionByStep(int step) {
 
-    if(actionCode == NUMBER_OF_ANTS_ACTION) {
+    if(step == 1) {
         printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
         return "[Number of ants]";
-    } else if (actionCode == LOADING_TYPE_ACTION) {
+    } else if (step == 2) {
         printf("\nHow do you want start simulation? [write number and press enter]\n");
         printf("1: All squares are white.\n");
         printf("2: Square color is random.\n");
@@ -280,17 +309,47 @@ char* printActionQuestionByCode(ACTION_CODE actionCode) {
         printf("4: Load dimension and squares colors from file.\n");
         printf("Q: Quit simulation\n");
         return "[Loading type]";
-    } else if (actionCode == LOGIC_TYPE_ACTION) {
+    } else if (step == 3) {
         printf("\nWhich logic of ants do you want? [write number and press enter]\n");
         printf("1: Direct logic.\n");
         printf("2: Inverted logic.\n");
         printf("Q: Quit simulation\n");
         return "[Logic type]";
-    } else if (actionCode == DIMENSION_ACTION) {
+    } else if (step == 4) {
         printf("\nSelect dimensions of ground, [write rows and columns, divided by space\n");
         return "[Dimensions]";
-    } else if (actionCode == READY_ACTION) {
+    } else if (step == 5) {
         printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
+        return "[READY]";
+    }
+
+    return "";
+}
+
+char* printActionQuestionByCode(ACTION_CODE actionCode) {
+
+    if(actionCode == NUMBER_OF_ANTS_ACTION) {
+//        printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
+        return "[Number of ants]";
+    } else if (actionCode == LOADING_TYPE_ACTION) {
+//        printf("\nHow do you want start simulation? [write number and press enter]\n");
+//        printf("1: All squares are white.\n");
+//        printf("2: Square color is random.\n");
+//        printf("3: Select black squares through the terminal input.\n");
+//        printf("4: Load dimension and squares colors from file.\n");
+//        printf("Q: Quit simulation\n");
+        return "[Loading type]";
+    } else if (actionCode == LOGIC_TYPE_ACTION) {
+//        printf("\nWhich logic of ants do you want? [write number and press enter]\n");
+//        printf("1: Direct logic.\n");
+//        printf("2: Inverted logic.\n");
+//        printf("Q: Quit simulation\n");
+        return "[Logic type]";
+    } else if (actionCode == DIMENSION_ACTION) {
+//        printf("\nSelect dimensions of ground, [write rows and columns, divided by space\n");
+        return "[Dimensions]";
+    } else if (actionCode == READY_ACTION) {
+//        printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
         return "[READY]";
     }
 
@@ -311,10 +370,14 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
     FD_ZERO(&inputs);
     struct timeval tv;
     tv.tv_usec = 0;
+    int tempStep = pdata->step;
     while(!data_isStopped(pdata)) {
-        if(data_isWritten(pdata)) {
+        if(pdata->step != tempStep) {
             break;
         }
+        //        if(data_isWritten(pdata)) {
+//            break;
+//        }
 
         tv.tv_sec = 1;
         FD_SET(STDIN_FILENO, &inputs);
@@ -339,7 +402,7 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
                     data_stop(pdata);
                 } else {
                     if(writeToSocketAndSetSharedAntsData(pdata,actionCode,buffer,textStart)) {
-                        data_written(pdata);
+                        //data_written(pdata);
                         goto exit;
                     }
 
@@ -347,7 +410,7 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
             }
         }
     }
-    exit:
+    exit: ;
     reset_written(pdata);
 }
 

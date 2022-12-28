@@ -26,39 +26,9 @@
 //
 //
 //    int written;
-//    pthread_cond_t startGame;
+//    pthread_cond_t startAntSimulation;
 //} DATA;
 
-typedef enum actionCode {
-    UKNOWN_ACTION = -1,
-    NUMBER_OF_ANTS_ACTION = 1,
-    LOADING_TYPE_ACTION = 2,
-    LOGIC_TYPE_ACTION = 3,
-    DIMENSION_ACTION = 4,
-    READY_ACTION = 5,
-}ACTION_CODE;
-
-void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode);
-bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode,char* buffer, char* textStart);
-
-void writeStateOfSharedData(DATA* pdata, int socket);
-
-void *data_writeDataClient(void *data);
-void printData(DATA* pdata);
-char* printActionQuestionByCode(ACTION_CODE actionCode);
-void data_init(DATA *data, const char* userName, int socket1,int socket2);
-void data_initClient(DATA *data, const char* userName, int socket);
-void data_destroy(DATA *data);
-void data_stop(DATA *data);
-int data_isStopped(DATA *data);
-void *data_readData(void *data);
-void *data_writeData(void *data);
-
-void reset_written(DATA *data);
-void data_written(DATA *data);
-int data_isWritten(DATA *data);
-
-void printError(char *str);
 
 
 

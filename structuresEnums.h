@@ -5,12 +5,17 @@
 #ifndef LANGTONSANTPOS_STRUCTURESENUMS_H
 #define LANGTONSANTPOS_STRUCTURESENUMS_H
 
+#define BUFSIZE 4096
+#define SERVER_BACKLOG 2
+
 #include "pthread.h"
+#include <arpa/inet.h>
 //#include "client_server_definitions.h"
 
 #define USER_LENGTH 10
 #define BUFFER_LENGTH 300
 extern char *endMsg;
+
 
 typedef enum loadingType {
     NOT_SELECTED_LOADING_TYPE = -1,
@@ -38,11 +43,21 @@ typedef enum backgroundColor {
     BLACK = 1,
 }BACKGROUND_COLOR;
 
+typedef struct sockaddr_in SA_IN;
+typedef struct sockaddr SA;
+
+typedef struct acceptData {
+    int serverSocket;
+    SA_IN* client_addr;
+    int* addr_size;
+}ACCEPT_DATA;
+
 typedef struct data {
     char userName[USER_LENGTH + 1];
     pthread_mutex_t mutex;
+    int numberOfClients;
+    int* sockets;
     int socket;
-    int socket2;
     int stop;
     int continueSimulation;
 
@@ -55,10 +70,14 @@ typedef struct data {
     pthread_mutex_t writtenMutex;
 
 
+
     int written;
-    pthread_cond_t startGame;
-    pthread_cond_t continueSimCond;
+    pthread_cond_t startAntSimulation;
+    pthread_cond_t continueAntSimulation;
+    pthread_cond_t* startListening;
+    ACCEPT_DATA* acceptDataForServer;
 } DATA;
+
 
 typedef  struct box{
     BACKGROUND_COLOR color;
@@ -68,6 +87,15 @@ typedef  struct box{
 
     pthread_mutex_t* mut;
 }BOX;
+
+typedef enum actionCode {
+    UKNOWN_ACTION = -1,
+    NUMBER_OF_ANTS_ACTION = 1,
+    LOADING_TYPE_ACTION = 2,
+    LOGIC_TYPE_ACTION = 3,
+    DIMENSION_ACTION = 4,
+    READY_ACTION = 5,
+}ACTION_CODE;
 
 typedef struct display{
     int width;

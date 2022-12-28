@@ -1,4 +1,5 @@
 #include "client_server_definitions.h"
+#include "client_definition.h"
 #include "settings.h"
 
 #include <stdlib.h>
@@ -44,18 +45,25 @@ int main(int argc, char *argv[]) {
     }
 
     //inicializacia dat zdielanych medzi vlaknami
+    printf("Socket = %d\n",sock);
+    pthread_cond_t startListeningCond = PTHREAD_COND_INITIALIZER;
     DATA data;
-    data_init(&data, userName, sock,0);
+    data.startListening = &startListeningCond;
+    data_initClient(&data, userName,sock);
 
+    readInitData(&data);
     //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
     pthread_t thread;
-    pthread_create(&thread, NULL, data_writeDataClient, (void *)&data);
+    pthread_create(&thread, NULL,data_writeDataClient, (void *)&data);
 
     //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
+    //data_readData((void *)&data);
     data_readData((void *)&data);
 
     //pockame na skoncenie zapisovacieho vlakna <pthread.h>
     pthread_join(thread, NULL);
+
+    //TODO SPRAVIT DESTROY AJ PRE DATA
     data_destroy(&data);
 
     //uzavretie socketu <unistd.h>

@@ -7,17 +7,46 @@
 #include "ant.h"
 #include "display.h"
 #include "settings.h"
-#include "client_server_definitions.h"
 
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include "structuresEnums.h"
+#include "server_definition.h"
 
-typedef struct sockaddr_in SA_IN;
-typedef struct sockaddr SA;
-#define BUFSIZE 4096
-#define SERVER_BACKLOG 2
+
+void* serverRead(void* data) {
+    printLog("void* serverRead(void* data)");
+    DATA *pdata = (DATA *)data;
+}
+
+
+void* clientsAcceptF(void* data) {
+    printLog("void* clientsAcceptF(void* data)");
+    DATA *pdata = (DATA *)data;
+    int clientSocket;
+    int serverSocket = pdata->acceptDataForServer->serverSocket;
+    SA_IN* client_addr = pdata->acceptDataForServer->client_addr;
+    int* addr_size = pdata->acceptDataForServer->addr_size;
+
+    while(true) {
+        int numberOfClients = pdata->numberOfClients;
+
+        if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
+            printError("Error - accept");
+        } else {
+            pdata->sockets[numberOfClients] = clientSocket;
+            pdata->numberOfClients++;
+            printf("Client[%d] connected!\n",numberOfClients);
+        }
+        pthread_mutex_lock(&pdata->mutex);
+        if(pdata->numberOfClients > 0) {
+            pthread_cond_signal(pdata->startListening);
+        }
+        pthread_mutex_unlock(&pdata->mutex);
+    }
+}
 
 void* antSimulation(void* data) {
     // split into frames from wiki
@@ -37,8 +66,8 @@ void* antSimulation(void* data) {
 
 
     pthread_mutex_lock(&pdata->mutex);
-    pthread_cond_wait(&pdata->startGame,&pdata->mutex);
-    printLog("After: pthread_cond_wait(&pdata->startGame,&pdata->mutex)");
+    pthread_cond_wait(&pdata->startAntSimulation, &pdata->mutex);
+    printLog("After: pthread_cond_wait(&pdata->startAntSimulation,&pdata->mutex)");
     rows = pdata->rows;
     columns = pdata->columns;
     numberOfAnts = pdata->numberOfAnts;
@@ -206,7 +235,6 @@ void* antSimulation(void* data) {
 
 int main(int argc,char* argv[]) {
 
-    int numberOfClients = 0;
     //////////////////////////////////////////
     ////SERVER
     printLog("main: server");
@@ -219,8 +247,8 @@ int main(int argc,char* argv[]) {
     }
     char *userName = argv[2];
 
-    int serverSocket,clientSocket,clientSocket2,addr_size;
-    SA_IN  server_addr, client_addr;
+    int serverSocket, clientSocket, clientSocket2, addr_size;
+    SA_IN server_addr, client_addr;
 
     //vytvorenie TCP socketu <sys/socket.h>
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -234,12 +262,12 @@ int main(int argc,char* argv[]) {
     server_addr.sin_port = htons(port);       //nastavenie portu
 
     //prepojenie adresy servera so socketom <sys/socket.h>
-    if (bind(serverSocket, (SA *)&server_addr, sizeof(server_addr)) < 0) {
+    if (bind(serverSocket, (SA *) &server_addr, sizeof(server_addr)) < 0) {
         printError("Error - bind.");
     }
 
     //server bude prijimat nove spojenia cez socket serverSocket <sys/socket.h>
-    if(listen(serverSocket, SERVER_BACKLOG) < 0) {
+    if (listen(serverSocket, SERVER_BACKLOG) < 0) {
         printError("Error - listen.");
     }
 
@@ -247,47 +275,90 @@ int main(int argc,char* argv[]) {
 
     //wait for, and eventually accept an incoming connection
     addr_size = sizeof(SA_IN);
-    if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
-        printError("Error - accept");
-    }
-    printf("Client connected!\n");
-//    if((clientSocket2 = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
-//        printError("Error - accept");
-//    }
-    printf("Client connected!\n");
 
-    //uzavretie pasivneho socketu <unistd.h>
-    //TODO ZMAZAL SOM KVOLI TUTORIALU
-    close(serverSocket);
 
 
     //inicializacia dat zdielanych medzi vlaknami
+
+
     DATA data;
-    data_init(&data, userName, clientSocket,0);
+    data_init(&data, userName);
+    pthread_cond_t startListening[SERVER_BACKLOG];
+    data.sockets = (int *) calloc(SERVER_BACKLOG, sizeof(int));
+    data.startListening = startListening;
+    data.numberOfClients = 0;
+
+
+
+
 
 
     //inicializacia vlakna na ktorom bude prebiehat simulacia
     pthread_t gameThread;
-    pthread_create(&gameThread,NULL,antSimulation,(void* )&data);
+    pthread_create(&gameThread, NULL, antSimulation, (void *) &data);
 
     //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
-    pthread_t thread;
-    pthread_create(&thread, NULL, data_writeData, (void *)&data);
+    pthread_t threadWrite[SERVER_BACKLOG];
 
-    //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
-    data_readData((void *)&data);
-
-    //pockame na skoncenie zapisovacieho vlakna <pthread.h> a vlakna na simulacia mravcov
-    pthread_join(gameThread,NULL);
-    pthread_join(thread, NULL);
-    data_destroy(&data);
-
-    //uzavretie socketu klienta <unistd.h>
-    close(clientSocket);
+    //vytvorenie vlakna  na citanie dat zo socketu
+    pthread_t threadRead[SERVER_BACKLOG];
 
 
-    return (EXIT_SUCCESS);
 
-    ////END-SERVER
-    //////////////////////////////////////////
+    //data_readData((void *)&data);
+
+
+    //v hlavnom vlakne sa budu prijimat novi clienti
+    while (true) {
+        int numberOfClients = data.numberOfClients;
+
+        if ((clientSocket = accept(serverSocket, (SA *) &client_addr, (socklen_t *) &addr_size)) < 0) {
+            printError("Error - accept");
+        } else {
+            printf("ACCEPTED\n");
+            data.sockets[numberOfClients] = clientSocket;
+            data.numberOfClients++;
+            writeStateOfSharedData(&data,data.sockets[numberOfClients]);
+            pthread_create(&threadWrite[numberOfClients], NULL, data_writeData, (void *) &data);
+            printf("0\n");
+            pthread_create(&threadRead[numberOfClients], NULL, data_readData, (void *) &data);
+            printf("1\n");
+            pthread_cond_init(&data.startListening[numberOfClients], NULL);
+
+            printf("Client[%d] connected = socket%d !\n", numberOfClients,clientSocket);
+
+        }
+//        pthread_mutex_lock(&data.mutex);
+//        if(data.numberOfClients > 0) {
+//            pthread_cond_signal(data.startListening);
+//        }
+//        pthread_mutex_unlock(&data.mutex);
+    }
+
+
+
+        //pockame na skoncenie zapisovacieho vlakna <pthread.h> a vlakna na simulacia mravcov
+        pthread_join(gameThread, NULL);
+        for (int i = 0; i < SERVER_BACKLOG; i++) {
+            pthread_join(threadWrite[i], NULL);
+        }
+        for (int i = 0; i < SERVER_BACKLOG; i++) {
+            pthread_join(threadRead[i], NULL);
+        }
+
+
+        free(data.sockets);
+        data_destroy(&data);
+
+        //uzavretie socketu klienta <unistd.h>
+        close(clientSocket);
+        //uzavretie pasivneho socketu <unistd.h>
+        //TODO ZMAZAL SOM KVOLI TUTORIALU
+        close(serverSocket);
+
+
+        return (EXIT_SUCCESS);
+
+        ////END-SERVER
+        //////////////////////////////////////////
 }

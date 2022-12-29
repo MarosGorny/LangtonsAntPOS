@@ -281,6 +281,11 @@ void initSimulationSetting(DATA* pdata) {
 
         if(pdata->stop == 1)
             break;
+
+        if(pdata->step >= 6) {
+            writeToSocketByAction(pdata,UKNOWN_ACTION);
+        }
+        //TODO CONTINUE/PAUSE
     }
 
 

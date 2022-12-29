@@ -124,7 +124,9 @@ void* antF(void* arg) {
             //TODO SPRAVIT TO NA COND WAIT a mozem to aj pauzovat (pouzit aj broadcast)
             //TODO TU MOZU VZNIKNUT MEMORY LEAKS, SPRAVIT TO LEPSIE
             printf("TVRDY EXIT MRAVCA\n");
-            pthread_exit(NULL);
+            int *dataStop = malloc(sizeof (int));
+            *dataStop = -11;
+            pthread_exit(dataStop);
         }
 
 

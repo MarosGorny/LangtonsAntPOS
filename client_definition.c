@@ -32,7 +32,7 @@ void data_initClient(DATA* data, const char* userName,int socket) {
     strncpy(data->userName, userName, USER_LENGTH);
     printf("mutex: %d\n",pthread_mutex_init(&data->mutex, NULL) );
     pthread_mutex_init(&data->writtenMutex, NULL);
-    //pthread_cond_init(data->startListening,NULL);
+    //pthread_cond_init(data->condStartListeningArray,NULL);
     pthread_cond_init(&data->startAntSimulation, NULL);
     pthread_cond_init(&data->continueAntSimulation, NULL);
     printLog("\tEND data_initClient");
@@ -43,7 +43,7 @@ void *data_writeDataClient(void *data) {
     DATA *pdata = (DATA *)data;
 
 //    pthread_mutex_lock(&pdata->mutex);
-//        pthread_cond_wait(pdata->startListening, &pdata->mutex);
+//        pthread_cond_wait(pdata->condStartListeningArray, &pdata->mutex);
 //        printf("After wait in writeData\n");
 //    pthread_mutex_unlock(&pdata->mutex);
 
@@ -112,7 +112,7 @@ void *data_readData(void *data) {
 
 //
 //    pthread_mutex_lock(&pdata->mutex);
-//    pthread_cond_signal(pdata->startListening);
+//    pthread_cond_signal(pdata->condStartListeningArray);
 //    pthread_mutex_unlock(&pdata->mutex);
 
 

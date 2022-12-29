@@ -74,7 +74,7 @@ typedef struct data {
     int written;
     pthread_cond_t startAntSimulation;
     pthread_cond_t continueAntSimulation;
-    pthread_cond_t* startListening;
+    pthread_cond_t* condStartListeningArray;
     pthread_cond_t updateClients;
     ACCEPT_DATA* acceptDataForServer;
     int step;

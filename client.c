@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     printf("Socket = %d\n",sock);
     pthread_cond_t startListeningCond = PTHREAD_COND_INITIALIZER;
     DATA data;
-    data.startListening = &startListeningCond;
+    data.condStartListeningArray = &startListeningCond;
     data_initClient(&data, userName,sock);
 
     readInitData(&data);

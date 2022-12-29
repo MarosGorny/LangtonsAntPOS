@@ -43,6 +43,7 @@ void writeStateOfSharedData(DATA* pdata, int socket){
 void *data_writeData(void *data) {
     printLog("void *data_writeData(void *data)");
     DATA *pdata = (DATA *)data;
+
     pthread_mutex_lock(&pdata->mutex);
     int idClient = pdata->numberOfClients - 1;
     pthread_mutex_unlock(&pdata->mutex);
@@ -51,24 +52,22 @@ void *data_writeData(void *data) {
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     printData(pdata);
 
-
-    while(true) {
+    bool repeat = true;
+    while(repeat) {
         pthread_mutex_lock(&pdata->mutex);
         pthread_cond_wait(&pdata->updateClients,&pdata->mutex);
-        //pthread_cond_signal(&pdata->startListening[idClient]);
+        //pthread_cond_signal(&pdata->condStartListeningArray[idClient]);
         writeStateOfSharedData(pdata,pdata->sockets[idClient]);
+        repeat = pdata->stop != 1;
         pthread_mutex_unlock(&pdata->mutex);
     }
-
-
-
-
-
 
     //initSimulationSetting(pdata);
     //writeMsgToAllParticipants(pdata);
 
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
+
+
 
     return NULL;
 }
@@ -82,11 +81,8 @@ void *data_readData(void *data) {
     printf("ID client %d\n",idClient);
 
 
-
-
-
 //    pthread_mutex_lock(&pdata->mutex);
-//    pthread_cond_wait(&pdata->startListening[idClient],&pdata->mutex);
+//    pthread_cond_wait(&pdata->condStartListeningArray[idClient],&pdata->mutex);
 //    printf("readData - after wait\n");
 //    pthread_mutex_unlock(&pdata->mutex);
 
@@ -649,10 +645,12 @@ void data_init(DATA *data, const char* userName) {
     strncpy(data->userName, userName, USER_LENGTH);
     pthread_mutex_init(&data->mutex, NULL);
     pthread_mutex_init(&data->writtenMutex, NULL);
+
     pthread_cond_init(&data->startAntSimulation, NULL);
-    printf("PREDDD\n");
     pthread_cond_init(&data->continueAntSimulation, NULL);
-    printf("PREDDD\n");
+    pthread_cond_init(&data->updateClients, NULL);
+
+
 }
 
 

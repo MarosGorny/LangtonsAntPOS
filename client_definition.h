@@ -30,5 +30,7 @@ bool checkIfContinue(char* buffer,DATA *pdata);
 void data_destroy(DATA *data);
 void printError(char *str);
 char* printActionQuestionByStep(int step);
+int getDataByAction(char* posActionEnd, int action);
+void updateAllData(DATA* pdata,char* posActionEnd);
 
 #endif //LANGTONSANTPOS_CLIENT_DEFINITION_H

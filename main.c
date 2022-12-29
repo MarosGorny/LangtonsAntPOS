@@ -289,7 +289,7 @@ int main(int argc,char* argv[]) {
     data.updateClients = updateClients;
     data.startListening = startListening;
     data.numberOfClients = 0;
-    data.step = 0;
+    data.step = 1;
 
 
 
@@ -322,13 +322,7 @@ int main(int argc,char* argv[]) {
             pthread_cond_init(&data.startListening[numberOfClients], NULL);
 
             printf("Client[%d] connected = socket%d !\n", numberOfClients,clientSocket);
-
         }
-//        pthread_mutex_lock(&data.mutex);
-//        if(data.numberOfClients > 0) {
-//            pthread_cond_signal(data.startListening);
-//        }
-//        pthread_mutex_unlock(&data.mutex);
     }
 
 

@@ -78,6 +78,7 @@ typedef struct data {
     pthread_cond_t updateClients;
     ACCEPT_DATA* acceptDataForServer;
     int step;
+    int ready;
 } DATA;
 
 

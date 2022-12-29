@@ -20,14 +20,17 @@ void writeStateOfSharedData(DATA* pdata, int socket){
     buffer[BUFFER_LENGTH] = '\0';
     int userNameLength = strlen(pdata->userName);
     char* action = "[Shared date state]";
-    sprintf(buffer, "%s%s: %d %d %d %d %d %d", pdata->userName\
+    sprintf(buffer, "%s%s: %d %d %d %d %d %d %d %d %d", pdata->userName\
                                                         ,action\
                                                         ,pdata->continueSimulation\
                                                         ,pdata->columns\
                                                         ,pdata->rows\
                                                         ,pdata->numberOfAnts\
                                                         ,pdata->loadingType\
-                                                        ,pdata->logicType);
+                                                        ,pdata->logicType\
+                                                        ,pdata->stop\
+                                                        ,pdata->ready\
+                                                        ,pdata->step);
     char *pos = strchr(buffer, '\n');
     if (pos != NULL) {
         *pos = '\0';
@@ -123,6 +126,7 @@ void *data_readData(void *data) {
 }
 
 void makeAction(char* buffer, DATA *pdata) {
+    printf("STEP:%d\n",pdata->step);
     printLog("CLIENT: void makeAction(char* buffer, DATA *pdata)");
     char *target = NULL;
     char *posActionStart = strchr(buffer, '[');
@@ -170,6 +174,7 @@ void makeAction(char* buffer, DATA *pdata) {
             pdata->numberOfAnts = atoi(posActionEnd + 2);
             printf("Changed number of ants: %d\n",pdata->numberOfAnts);
             data_written(pdata);
+            pdata->step++;
         }
 
         if (strcmp(target,"[Loading type]") == 0) {
@@ -177,6 +182,7 @@ void makeAction(char* buffer, DATA *pdata) {
             pdata->loadingType = loadingType;
             printf("Changed loading type: %d\n",pdata->loadingType);
             data_written(pdata);
+            pdata->step++;
         }
 
         if (strcmp(target,"[Logic type]") == 0) {
@@ -184,6 +190,7 @@ void makeAction(char* buffer, DATA *pdata) {
             pdata->logicType = logicType;
             printf("Changed logic type: %d\n",pdata->logicType);
             data_written(pdata);
+            pdata->step++;
         }
 
         if (strcmp(target,"[Dimensions]") == 0) {
@@ -199,6 +206,7 @@ void makeAction(char* buffer, DATA *pdata) {
 
             printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
             data_written(pdata);
+            pdata->step++;
         }
 
         if (strcmp(target,"[READY]") == 0) {
@@ -208,10 +216,20 @@ void makeAction(char* buffer, DATA *pdata) {
                 printf("ANTS ARE READY\n");
                 pthread_cond_signal(&pdata->startAntSimulation);
                 data_written(pdata);
+                pdata->step++;
             } else {
                 printf("ANTS ARE NOT READY\n");
             }
         }
+//        printLog("bool checkIfQuit(char* buffer,DATA *pdata)");
+//        char *posSemi = strchr(buffer, ':');
+//        char *pos = strstr(posSemi + 1, endMsg);
+//        if (pos != NULL && pos - posSemi == 2 && *(pos + strlen(endMsg)) == '\0') {
+//            *(pos - 2) = '\0';
+//            printf("Pouzivatel %s ukoncil komunikaciu.\n", buffer);
+//            data_stop(pdata);
+//        }
+        //pdata->step++;
     }
 
     //if ( target ) printf( "%s\n", target );
@@ -232,6 +250,8 @@ bool checkIfQuit(char* buffer,DATA *pdata) {
         printf("Pouzivatel %s ukoncil komunikaciu.\n", buffer);
         data_stop(pdata);
         return true;
+
+
     }
     else {
         return false;

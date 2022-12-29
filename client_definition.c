@@ -67,9 +67,18 @@ void readInitData(DATA* pdata) {
     bzero(buffer, BUFFER_LENGTH);
     if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
     printf("BUFF----%s\n",buffer);
-    makeAction(buffer,pdata);
-    printf("readInitData: INCREMENTIG STEP\n");
-    pdata->step++;
+
+    char *posActionEnd;
+    posActionEnd = strchr(buffer, ']');
+
+    updateAllData(pdata,posActionEnd);
+    printData(pdata);
+    printf("Changed Shared date state\n");
+
+
+    //makeAction(buffer,pdata);
+    //printf("readInitData: INCREMENTIG STEP\n");
+    //pdata->step++;
     }
     else {
         printf("ELSE STOP\n");
@@ -114,6 +123,7 @@ void *data_readData(void *data) {
         printf("%s\n",buffer);
 
         if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
+            printf("XXXXXREAD DATA: %s\n",buffer);
 
             if(checkIfQuit(buffer,pdata)) {
 
@@ -128,8 +138,8 @@ void *data_readData(void *data) {
                 makeAction(buffer,pdata);
 
                 pthread_mutex_lock(&pdata->mutex);
-                printf("data_readData: INCREMENTIG STEP\n");
-                pdata->step++;
+                //printf("data_readData: INCREMENTIG STEP\n");
+                //pdata->step++;
                 printf("STEP: %d\n",pdata->step);
                 printActionQuestionByStep(pdata->step);
                 pthread_mutex_unlock(&pdata->mutex);
@@ -155,6 +165,7 @@ void makeAction(char* buffer, DATA *pdata) {
 
     printf("lockmutex: %d\n",pthread_mutex_lock(&pdata->mutex));
     if (posActionStart != NULL) {
+        printf("INSIDE if (posActionStart != NULL)\n ");
         //posActionStart += 1;
         posActionEnd = strchr(buffer, ']');
 
@@ -164,75 +175,50 @@ void makeAction(char* buffer, DATA *pdata) {
 
 //        if (strcmp(target,"[Shared date state]") == 0) {
         if(pdata->step == 0){
-            LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
-            pdata->logicType = logicType;
+            //LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
+            //pdata->logicType = logicType;
+
+
+            updateAllData(pdata,posActionEnd);
+            printData(pdata);
             printf("Changed Shared date state\n");
 
-
-            // Extract the first token
-            char* token = strtok(posActionEnd+2," ");
-            // loop through the string to extract all other tokens
-            for (int i = 0; i < 6; i++) {
-                int tempNumber = atoi(token);
-                if(i == 0) {
-                    pdata->continueSimulation = tempNumber;
-                } else if(i == 1) {
-                    pdata->columns = tempNumber;
-                } else if(i == 2) {
-                    pdata->rows = tempNumber;
-                } else if(i ==3) {
-                    pdata->numberOfAnts = tempNumber;
-                } else if (i ==4) {
-                    pdata->loadingType = tempNumber;
-                } else if (i == 5) {
-                    pdata->logicType = tempNumber;
-                }
-                token = strtok(NULL, " ");
-            }
         }
         printData(pdata);
 
 //        if (strcmp(target,"[Number of ants]") == 0) {
         if(pdata->step == 1) {
-            pdata->numberOfAnts = atoi(posActionEnd + 2);
+            updateAllData(pdata,posActionEnd);
+            printData(pdata);
             printf("Changed number of ants: %d\n",pdata->numberOfAnts);
-            data_written(pdata);
-            //data_written(pdata);
-        }
+        } else if
 
-        if (strcmp(target,"[Loading type]") == 0) {
-            LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionEnd + 2) - 1;
-            pdata->loadingType = loadingType;
+        //if (strcmp(target,"[Loading type]") == 0) {
+        (pdata->step == 2) {
+            updateAllData(pdata,posActionEnd);
             printf("Changed loading type: %d\n",pdata->loadingType);
             //data_written(pdata);
-        }
+        } else if
 
-        if (strcmp(target,"[Logic type]") == 0) {
-            LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionEnd + 2) -1;
-            pdata->logicType = logicType;
+//        if (strcmp(target,"[Logic type]") == 0) {
+        (pdata->step == 3) {
+            updateAllData(pdata,posActionEnd);
             printf("Changed logic type: %d\n",pdata->logicType);
             //data_written(pdata);
-        }
+        } else if
 
-        if (strcmp(target,"[Dimensions]") == 0) {
-            char *columnsCharPointer = strchr(posActionEnd+3,' ');
-            if ( columnsCharPointer ) printf( "%s\n", columnsCharPointer );
-            if(columnsCharPointer == NULL) {
-                pdata->columns = atoi(posActionEnd+2);
-            } else {
-                pdata->columns = atoi(columnsCharPointer);
-            }
-            if ( posActionEnd+2 ) printf( "%s\n", posActionEnd+2 );
-            pdata->rows = atoi(posActionEnd+2);
+//        if (strcmp(target,"[Dimensions]") == 0) {
+        (pdata->step == 4) {
+            updateAllData(pdata,posActionEnd);
 
             printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
             //data_written(pdata);
-        }
+        } else if
 
-        if (strcmp(target,"[READY]") == 0) {
-            char *columnsCharPointer = strchr(posActionEnd,' ');
-            int temp = atoi(columnsCharPointer);
-            if (temp == 1) {
+//        if (strcmp(target,"[READY]") == 0) {
+        (pdata->step == 5) {
+            updateAllData(pdata,posActionEnd);
+            if (pdata->ready == 1) {
                 printf("ANTS ARE READY\n");
                 pthread_cond_signal(&pdata->startAntSimulation);
                 data_written(pdata);
@@ -259,6 +245,7 @@ void initSimulationSetting(DATA* pdata) {
 
     while(true) {
         //if(pdata->numberOfAnts <= 0) {
+        printf(" initSimulationSetting STEP: %d",pdata->step);
         if(pdata->step == 1) {
             printf("in\n");
             writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION);
@@ -291,13 +278,17 @@ void initSimulationSetting(DATA* pdata) {
             writeToSocketByAction(pdata,READY_ACTION);
             printf("BREAKING FROM:initSimulationSetting \n");
         }
+
+        if(pdata->stop == 1)
+            break;
     }
 
 
 
 }
 char* printActionQuestionByStep(int step) {
-
+    printLog("char* printActionQuestionByStep(int step)");
+    printf("STEP: %d\n",step);
     if(step == 1) {
         printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
         return "[Number of ants]";
@@ -371,7 +362,9 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
     struct timeval tv;
     tv.tv_usec = 0;
     int tempStep = pdata->step;
+    //printf("BEFORE WHILE\n");
     while(!data_isStopped(pdata)) {
+        //printf("INSIDE WHILE\n");
         if(pdata->step != tempStep) {
             break;
         }
@@ -394,13 +387,11 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
 
                 if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
                     printf("Written msg before simulation: %s\n",buffer);
-                    for (int i = 0; i < 2; i++) {
-                        write(pdata->sockets[i], buffer, strlen(buffer) + 1);
-                    }
-
+                    write(pdata->socket, buffer, strlen(buffer) + 1);
                     printf("End of communication.\n");
                     data_stop(pdata);
                 } else {
+                    printf("BUFFER TO WRITE: %s  (writeToSocketByAction)\n",buffer);
                     if(writeToSocketAndSetSharedAntsData(pdata,actionCode,buffer,textStart)) {
                         //data_written(pdata);
                         goto exit;
@@ -432,6 +423,7 @@ int data_isWritten(DATA *data) {
 
 bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart) {
     printLog("writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart)");
+    printf("BUFFER IN SOCKET %s\n",buffer);
     if(actionCode == NUMBER_OF_ANTS_ACTION) {
         int temp = atoi(textStart);
         if(temp > 0) {
@@ -598,6 +590,7 @@ int data_isStopped(DATA *data) {
     pthread_mutex_lock(&data->mutex);
     stop = data->stop;
     pthread_mutex_unlock(&data->mutex);
+    //printf("DATA IS STOPPED: stop: %d\n",*(&data->stop));
     return stop;
 }
 
@@ -668,13 +661,117 @@ bool checkIfContinue(char* buffer,DATA *pdata) {
 
 void printData(DATA* pdata) {
     printLog("printData(DATA* pdata)");
-    printf( "%s: con:%d col:%d row:%d ants:%d loaTyp%d logTyp%d\n", pdata->userName\
+    printf( "%s: con:%d col:%d row:%d ants:%d loaTyp%d logTyp%d stop:%d step:%d\n", pdata->userName\
                                                         ,pdata->continueSimulation\
                                                         ,pdata->columns\
                                                         ,pdata->rows\
                                                         ,pdata->numberOfAnts\
                                                         ,pdata->loadingType\
-                                                        ,pdata->logicType);
+                                                        ,pdata->logicType\
+                                                        ,pdata->stop\
+                                                        ,pdata->step);
+}
+
+int getDataByAction(char* posActionEnd, int action) {
+    char* token = strtok(posActionEnd+2," ");
+
+    // loop through the string to extract all other tokens
+    if(action > 6 || action < 0) {
+        printf("action > 6 || action < 0\n");
+        return -1;
+    }
+    for (int i = 0; i < action + 1; i++) {
+        if(i == action)
+            return atoi(token);
+        token = strtok(NULL, " ");
+    }
+
+//    for (int i = 0; i < 7; i++) {
+//        int tempNumber = atoi(token);
+//        if(i == 0) {
+//            pdata->continueSimulation = tempNumber;
+//        } else if(i == 1) {
+//            pdata->columns = tempNumber;
+//        } else if(i == 2) {
+//            pdata->rows = tempNumber;
+//        } else if(i ==3) {
+//            pdata->numberOfAnts = tempNumber;
+//        } else if (i ==4) {
+//            pdata->loadingType = tempNumber;
+//        } else if (i == 5) {
+//            pdata->logicType = tempNumber;
+//        } else if (i == 6) {
+//            pdata->stop = tempNumber;
+//        }
+//        token = strtok(NULL, " ");
+//    }
+}
+
+void updateAllData(DATA* pdata,char* posActionEnd) {
+    printf("UPDATE ALL DATA START: %s\n",posActionEnd+2);
+    char* token = strtok(posActionEnd+2," ");
+    //printf("TOKEN: %s\n",token);
+    int tempNumber;
+
+    // loop through the string to extract all other tokens
+
+    for (int i = 0; i < 9; i++) {
+        tempNumber = atoi(token);
+        //printf("SWITCH i=%d temp=%d\n",i,tempNumber);
+        switch (i) {
+            case 0:
+                pdata->continueSimulation = tempNumber;
+                break;
+            case 1:
+                pdata->columns = tempNumber;
+                break;
+            case 2:
+                pdata->rows = tempNumber;
+                break;
+            case 3:
+                pdata->numberOfAnts = tempNumber;
+                break;
+            case 4:
+                pdata->loadingType = tempNumber;
+                break;
+            case 5:
+                pdata->logicType = tempNumber;
+                break;
+            case 6:
+                pdata->stop = tempNumber;
+                break;
+            case 7:
+                pdata->ready = tempNumber;
+                break;
+            case 8:
+                pdata->step = tempNumber;
+                break;
+            default:
+                break;
+        }
+        token = strtok(NULL, " ");
+    }
+    printf("UPDATE ALL DATA END: %s\n",posActionEnd+2);
+
+//    for (int i = 0; i < 7; i++) {
+//
+//        if(i == 0) {
+//            pdata->continueSimulation = tempNumber;
+//        } else if(i == 1) {
+//            pdata->columns = tempNumber;
+//        } else if(i == 2) {
+//            pdata->rows = tempNumber;
+//        } else if(i ==3) {
+//            pdata->numberOfAnts = tempNumber;
+//        } else if (i ==4) {
+//            pdata->loadingType = tempNumber;
+//        } else if (i == 5) {
+//            pdata->logicType = tempNumber;
+//        } else if (i == 6) {
+//            pdata->stop = tempNumber;
+//        }
+//        token = strtok(NULL, " ");
+//    }
 }
 
 void printError(char *str) {

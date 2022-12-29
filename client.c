@@ -49,6 +49,7 @@ int main(int argc, char *argv[]) {
     pthread_cond_t startListeningCond = PTHREAD_COND_INITIALIZER;
     DATA data;
     data.condStartListeningArray = &startListeningCond;
+    data.sockets = (int *) calloc(1, sizeof(int));
     data_initClient(&data, userName,sock);
 
     readInitData(&data);
@@ -66,6 +67,7 @@ int main(int argc, char *argv[]) {
     //TODO SPRAVIT DESTROY AJ PRE DATA
     data_destroy(&data);
 
+    free(data.sockets);
     //uzavretie socketu <unistd.h>
     close(sock);
 

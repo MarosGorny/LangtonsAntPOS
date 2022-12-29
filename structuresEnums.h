@@ -6,7 +6,8 @@
 #define LANGTONSANTPOS_STRUCTURESENUMS_H
 
 #define BUFSIZE 4096
-#define SERVER_BACKLOG 2
+#define SERVER_BACKLOG 4
+//TODO dat si pozor, lebo v server backlogu je zapocitany aj samotny server
 
 #include "pthread.h"
 #include <arpa/inet.h>
@@ -46,39 +47,37 @@ typedef enum backgroundColor {
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
 
-typedef struct acceptData {
-    int serverSocket;
-    SA_IN* client_addr;
-    int* addr_size;
-}ACCEPT_DATA;
+//typedef struct acceptData {
+//    int serverSocket;
+//    SA_IN* client_addr;
+//    int* addr_size;
+//}ACCEPT_DATA;
 
 typedef struct data {
     char userName[USER_LENGTH + 1];
-    pthread_mutex_t mutex;
-    int numberOfClients;
-    int* sockets;
-    int socket;
-    int stop;
-    int continueSimulation;
 
-    int columns;
-    int rows;
     int numberOfAnts;
-
     LOADING_TYPE loadingType;
     LOGIC_TYPE logicType;
+    int rows;
+    int columns;
+
+    int* sockets;
+    int stop;
+    int continueSimulation;
+    int written;
+    int numberOfClients;
+    int step;
+    int ready;
+
+    pthread_mutex_t mutex;
     pthread_mutex_t writtenMutex;
 
-
-
-    int written;
     pthread_cond_t startAntSimulation;
     pthread_cond_t continueAntSimulation;
     pthread_cond_t* condStartListeningArray;
     pthread_cond_t updateClients;
-    ACCEPT_DATA* acceptDataForServer;
-    int step;
-    int ready;
+
 } DATA;
 
 

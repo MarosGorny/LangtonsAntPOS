@@ -16,7 +16,7 @@ char *endMsg = ":end";
 
 void data_initClient(DATA* data, const char* userName,int socket) {
     printLog("CLIENT: void data_initClient(DATA *data, const char* userName,int socket)");
-    data->socket = socket;
+    data->sockets[0] = socket;
     data->stop = 0;
     data->continueSimulation = 1;
     data->written = 0;
@@ -65,7 +65,7 @@ void readInitData(DATA* pdata) {
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     bzero(buffer, BUFFER_LENGTH);
-    if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
+    if (read(pdata->sockets[0], buffer, BUFFER_LENGTH) > 0) {
     printf("BUFF----%s\n",buffer);
 
     char *posActionEnd;
@@ -122,7 +122,7 @@ void *data_readData(void *data) {
         bzero(buffer, BUFFER_LENGTH);
         printf("%s\n",buffer);
 
-        if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
+        if (read(pdata->sockets[0], buffer, BUFFER_LENGTH) > 0) {
             printf("XXXXXREAD DATA: %s\n",buffer);
 
             if(checkIfQuit(buffer,pdata)) {
@@ -240,8 +240,7 @@ void makeAction(char* buffer, DATA *pdata) {
 
 void initSimulationSetting(DATA* pdata) {
     printLog("void initSimulationSetting(DATA* pdata)");
-    printLog("\tSTEP");
-    printf("%d\n",pdata->step);
+    printf("STEP %d\n",pdata->step);
 
     while(true) {
         //if(pdata->numberOfAnts <= 0) {
@@ -367,9 +366,9 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
     struct timeval tv;
     tv.tv_usec = 0;
     int tempStep = pdata->step;
-    //printf("BEFORE WHILE\n");
+    printf("BEFORE WHILE\n");
     while(!data_isStopped(pdata)) {
-        //printf("INSIDE WHILE\n");
+//        printf("INSIDE WHILE\n");
         if(pdata->step != tempStep) {
             break;
         }
@@ -392,7 +391,8 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
 
                 if (strstr(textStart, endMsg) == textStart && strlen(textStart) == strlen(endMsg)) {
                     printf("Written msg before simulation: %s\n",buffer);
-                    write(pdata->socket, buffer, strlen(buffer) + 1);
+                    write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+
                     printf("End of communication.\n");
                     data_stop(pdata);
                 } else {
@@ -429,11 +429,12 @@ int data_isWritten(DATA *data) {
 bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart) {
     printLog("writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart)");
     printf("BUFFER IN SOCKET %s\n",buffer);
+    printf("SOCKEEEEEEEEEEEET %d\n",pdata->sockets[0]);
     if(actionCode == NUMBER_OF_ANTS_ACTION) {
         int temp = atoi(textStart);
         if(temp > 0) {
 
-            write(pdata->socket, buffer, strlen(buffer) + 1);
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
             //data_written(pdata);
             pdata->numberOfAnts = temp;
             return true;
@@ -467,7 +468,7 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
                 break;
         }
         if (tempLoadType != 100) {
-            write(pdata->socket, buffer, strlen(buffer) + 1);
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
             //data_written(pdata);
             pdata->loadingType = tempLoadType;
             //reset_written(pdata);
@@ -494,7 +495,7 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
                 break;
         }
         if (tempLogicType != 100) {
-            write(pdata->socket, buffer, strlen(buffer) + 1);
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
             //data_written(pdata);
             pdata->logicType = tempLogicType;
             //reset_written(pdata);
@@ -511,7 +512,7 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
             columns = atoi(columnsCharPointer);
         }
         if(columns > 0 && rows > 0) {
-            write(pdata->socket, buffer, strlen(buffer) + 1);
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
             //data_written(pdata);
             pdata->rows = rows;
             pdata->columns = columns;
@@ -521,13 +522,13 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
     } else if (actionCode == READY_ACTION) {
         int temp = atoi(textStart);
         if(temp == 2 || temp == 1) {
-            write(pdata->socket, buffer, strlen(buffer) + 1);
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
             //data_written(pdata);
             //reset_written(pdata);
             return true;
         }
     } else {
-        write(pdata->socket, buffer, strlen(buffer) + 1);
+        write(pdata->sockets[0], buffer, strlen(buffer) + 1);
         return false;
     }
     return false;
@@ -546,7 +547,7 @@ void *data_readDataClient(void *data) {
 //        printf("%d",abc);
         printf("%s\n",buffer);
 
-        if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
+        if (read(pdata->sockets[0], buffer, BUFFER_LENGTH) > 0) {
 
             if(checkIfQuit(buffer,pdata)) {
 

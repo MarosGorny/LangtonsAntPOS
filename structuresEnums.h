@@ -59,7 +59,7 @@ typedef struct data {
     int* sockets;
     int stop;
     int continueSimulation;
-    int written;
+    //int written;
     int numberOfClients;
     int step;
     int ready;
@@ -71,6 +71,8 @@ typedef struct data {
     pthread_cond_t continueAntSimulation;
     pthread_cond_t* condStartListeningArray;
     pthread_cond_t updateClients;
+
+    int** colorOfDisplay;
 
 } DATA;
 
@@ -90,6 +92,7 @@ typedef enum actionCode {
     LOADING_TYPE_ACTION = 2,
     LOGIC_TYPE_ACTION = 3,
     DIMENSION_ACTION = 4,
+    SELECTING_BLACK_BOXES = 99,
     READY_ACTION = 5,
 }ACTION_CODE;
 

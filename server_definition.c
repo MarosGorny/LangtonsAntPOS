@@ -32,10 +32,12 @@ void writeStateOfSharedData(DATA* pdata, int socket){
                                                         ,pdata->continueSimulation\
                                                         ,pdata->step\
                                                         ,pdata->ready);
+                                                        //TODO Ak by som chcel na poziciu blacBox pridat x a y akontrolovat zmenu
     char *pos = strchr(buffer, '\n');
     if (pos != NULL) {
         *pos = '\0';
     }
+    printf("Pred writom\n");
     write(socket, buffer, strlen(buffer) + 1);
     printf("State data sended: %s\n",buffer);
 };
@@ -151,6 +153,35 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 }
                 pdata->rows = atoi(posActionBracketsEnd + 2);
                 printf("Changed rows: %d columns: %d\n", pdata->rows, pdata->columns);
+
+                if(pdata->loadingType == TERMINAL_INPUT) {
+                    // init colorOfDisplay
+                    printf("ALLOCATION 1\n");
+
+                    printf("ALLOCATION 2\n");
+                    pdata->colorOfDisplay = (int**) calloc(pdata->rows, sizeof(int*));
+                    for (int i = 0; i <  pdata->rows ; i++) {
+                        printf("ALLOCATION 3\n");
+                        pdata->colorOfDisplay[i] = (int*) calloc(pdata->columns,sizeof(int));
+                    }
+
+                    addStep = false;
+                }
+
+            } else if (strcmp(target, "[SELECTING BLACK BOXES]") == 0) {
+                printf("Dosal sa dnu\n");
+                printf("buf: %s\n",buffer);
+                char *yPointer = strchr(posActionBracketsEnd + 3, ' ');
+                if(strstr(posActionBracketsEnd+2, "OK") == NULL) {
+                    printf("Dosal sa dnu1\n");
+                    int y = atoi(yPointer);
+                    int x = atoi(posActionBracketsEnd + 2);
+                    printf("Dosal sa dnu3\n");
+                    pdata->colorOfDisplay[x][y] = 1;
+                    printf("added black box to position X: %d Y: %d\n", y, x);
+                    addStep = false;
+                }
+
             } else if (strcmp(target, "[READY]") == 0) {
                 char *columnsCharPointer = strchr(posActionBracketsEnd, ' ');
                 int temp = atoi(columnsCharPointer);
@@ -166,6 +197,7 @@ void makeActionNew(char* buffer, DATA *pdata) {
             if (addStep) pdata->step++;
             pthread_mutex_unlock(&pdata->mutex);
             free(target);
+            printf("Dosal sa von\n");
         }
     }
 }
@@ -227,6 +259,9 @@ void data_destroyServer(DATA *data) {
     pthread_cond_destroy(&data->continueAntSimulation);
     pthread_cond_destroy(&data->updateClients);
 
+
+
+
     for (int i = 0; i < SERVER_BACKLOG; i++) {
         pthread_cond_destroy(&data->condStartListeningArray[i]);
     }
@@ -248,7 +283,7 @@ void data_init(DATA *data, const char* userName) {
     //Communication data
     data->stop = 0;
     data->continueSimulation = 1;
-    data->written = 0;
+    //data->written = 0;
     data->numberOfClients = 1;
     data->step = 1;
     data->ready = 0;

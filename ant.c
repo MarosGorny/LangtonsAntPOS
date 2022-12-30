@@ -115,6 +115,7 @@ void* antF(void* arg) {
         printf("\n");
 
         printf("pred waitom %d\n",pthread_mutex_lock(antsDisplay->mut));
+
         if(antsDisplay->dataSocket->continueSimulation == 0) {
             pthread_cond_wait(&antsDisplay->dataSocket->continueAntSimulation, antsDisplay->mut);
         }

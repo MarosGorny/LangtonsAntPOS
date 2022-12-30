@@ -34,7 +34,7 @@ void data_initClient(DATA* data, const char* userName,int socket) {
     data->sockets[0] = socket;
     data->stop = 0;
     data->continueSimulation = 1;
-    data->written = 0;
+    //data->written = 0;
     data->numberOfClients = 1;
     data->step = 0;
     data->ready = 0;
@@ -89,7 +89,7 @@ void readInitData(DATA* pdata) {
         data_stop(pdata);
     }
 
-    printActionQuestionByStep(pdata->step);
+    printActionQuestionByStep(pdata->step,NULL);
 
 }
 
@@ -113,7 +113,7 @@ void *data_readDataClient(void *data) {
             //printf("data_readData: INCREMENTIG STEP\n");
             //pdata->step++;
             printf("STEP: %d\n",pdata->step);
-            printActionQuestionByStep(pdata->step);
+            printActionQuestionByStep(pdata->step,pdata);
             pthread_mutex_unlock(&pdata->mutex);
         }
         else {
@@ -221,7 +221,7 @@ void initSimulationSetting(DATA* pdata) {
         }
     }
 }
-void* printActionQuestionByStep(int step) {
+void* printActionQuestionByStep(int step, DATA* pdata) {
     printLog("char* printActionQuestionByStep(int step)");
     printf("STEP: %d\n",step);
     if(step == 1) {
@@ -242,7 +242,14 @@ void* printActionQuestionByStep(int step) {
         printf("Q: Quit simulation\n");
         //return "[Logic type]";
     } else if (step == 4) {
-        printf("\nSelect dimensions of ground, [write rows and columns, divided by space\n");
+
+        if(!pdata->rows > 0) {
+            printf("\nSelect dimensions of ground, [write rows and columns, divided by space]\n");
+        } else {
+            printf("\nSelect black boxes, [write X and Y, divided by space]\n");
+            printf("\tWrite \"OK\" to continue\n");
+        }
+
         //return "[Dimensions]";
     } else if (step == 5) {
         printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
@@ -263,6 +270,8 @@ char* getActionStringInBracket(ACTION_CODE actionCode) {
             return "[Logic type]";
         case DIMENSION_ACTION:
             return "[Dimensions]";
+        case SELECTING_BLACK_BOXES:
+            return "[SELECTING BLACK BOXES]";
         case READY_ACTION:
             return "[READY]";
         default:
@@ -273,18 +282,30 @@ char* getActionStringInBracket(ACTION_CODE actionCode) {
 
 void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
     printLog("void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode)");
+    printf("ACTION CODE IN writeToSocketByAction : %d\n",actionCode);
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     int userNameLength = strlen(pdata->userName);
+    char* action;
 
-    char* action = getActionStringInBracket(actionCode);
+    int tempStep = pdata->step;
+
+    if(tempStep == 4 && pdata->rows != 0) {
+        action = getActionStringInBracket(SELECTING_BLACK_BOXES);
+        printf("action = getActionStringInBracket(SELECTING_BLACK_BOXES);\n");
+    } else {
+        action = getActionStringInBracket(actionCode);
+        printf("action = getActionStringInBracket(actionCode);\n");
+    }
+
+
 
     fd_set inputs;
     FD_ZERO(&inputs);
     struct timeval tv;
     tv.tv_usec = 0;
 
-    int tempStep = pdata->step;
+
 
     printf("BEFORE WHILE\n");
     while(!data_isStopped(pdata)) {
@@ -319,9 +340,14 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
                     //TODO SPRAVIT QUIT A END PORIADNE
                 } else {
                     printf("BUFFER TO WRITE: %s  (writeToSocketByAction)\n",buffer);
-                    if(writeToSocketAndSetSharedAntsData(pdata,actionCode,buffer,textStart)) {
-                        //data_written(pdata);
-                        goto exit;
+                    if(tempStep == 4 && pdata->rows != 0) {
+                        if(writeToSocketAndSetSharedAntsData(pdata,SELECTING_BLACK_BOXES,buffer,textStart)) {
+                            goto exit;
+                        }
+                    } else {
+                        if(writeToSocketAndSetSharedAntsData(pdata,actionCode,buffer,textStart)) {
+                            goto exit;
+                        }
                     }
 
                 }
@@ -337,6 +363,7 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
     printLog("writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart)");
     printf("BUFFER IN SOCKET %s\n",buffer);
     printf("SOCKEEEEEEEEEEEET %d\n",pdata->sockets[0]);
+    printf("Action code: %d\n",actionCode);
     if(actionCode == NUMBER_OF_ANTS_ACTION) {
         int temp = atoi(textStart);
         if(temp > 0) {
@@ -423,11 +450,36 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
             //data_written(pdata);
             pdata->rows = rows;
             pdata->columns = columns;
+            if(pdata->loadingType == TERMINAL_INPUT) {
+                printf("SELECT POSTION OF BLACK BOXES[write: x y]\n");
+            }
+
             //reset_written(pdata);
             return true;
         }
+    } else if(actionCode == SELECTING_BLACK_BOXES) {
+        if(strstr(textStart, "OK")) {
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+        } else {
+            int x;
+            int y;
+            char *yPointer = strchr(textStart,' ');
+            x = atoi(textStart);
+            y = atoi(yPointer);
+
+            if((x >= 0 && x < pdata->rows) && (y >= 0 && y < pdata->columns)) {
+                write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+                printf("POSTIONS SENDED x:%d, y:%d\n",x,y);
+                return true;
+            } else {
+                printf("WRONG POSITIONS\n");
+                printf("POSTIONS x:%d, y:%d\n",x,y);
+            }
+        }
     } else if (actionCode == READY_ACTION) {
+        printf("IN READY\n");
         int temp = atoi(textStart);
+        printf("AFTER ATOI\n");
         if(temp == 2 || temp == 1) {
             write(pdata->sockets[0], buffer, strlen(buffer) + 1);
             //data_written(pdata);

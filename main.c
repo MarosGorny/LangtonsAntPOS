@@ -153,7 +153,12 @@ void* antSimulation(void* data) {
     //        fclose(fptrRead);
     //    }
         if (loadingType == TERMINAL_INPUT) {
-            initBoxTerminalInput(&display);
+            for (int i = 0; i < rows; i++) {
+                for (int j = 0; j < columns; j++) {
+                    display.box[i][j]->color = display.dataSocket->colorOfDisplay[i][j];
+                }
+            }
+            //initBoxTerminalInput(&display);
         }
 
         //pthreads of ants
@@ -238,6 +243,14 @@ void* antSimulation(void* data) {
         }
         //Destroy whole 2Darray
         free(display.box);
+
+        if(loadingType == TERMINAL_INPUT) {
+            for (int i = 0; i <  display.dataSocket->rows ; i++) {
+                free(display.dataSocket->colorOfDisplay[i]);
+            }
+            free(display.dataSocket->colorOfDisplay);
+        }
+
 
 
         pthread_mutex_destroy(&mainMut);

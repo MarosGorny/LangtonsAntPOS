@@ -20,7 +20,7 @@ void *data_writeDataClient(void *data);
 void readMakeAction(char* buffer, DATA *pdata);
 void data_destroyClient(DATA *data);
 
-void* printActionQuestionByStep(int step);
+void* printActionQuestionByStep(int step,DATA* pdata);
 void updateAllData(DATA* pdata,char* posActionEnd);
 
 #endif //LANGTONSANTPOS_CLIENT_DEFINITION_H

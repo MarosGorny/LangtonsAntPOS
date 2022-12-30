@@ -12,40 +12,49 @@
 #include <stdlib.h>
 #include <errno.h>
 
-char *endMsg = ":end";
+char* endMsg = ":end";
+char* pauseMsg = ":pause";
+char* continueMsg = ":continue";
+char* quitMsg = ":quit";
+
 
 void data_initClient(DATA* data, const char* userName,int socket) {
     printLog("CLIENT: void data_initClient(DATA *data, const char* userName,int socket)");
+
+    data->userName[USER_LENGTH] = '\0';
+    strncpy(data->userName, userName, USER_LENGTH);
+
+    data->numberOfAnts = 0;
+    data->loadingType = NOT_SELECTED_LOADING_TYPE;
+    data->logicType = NOT_SELECTED_ANTS_LOGIC;
+    data->rows = 0;
+    data->columns = 0;
+
+    data->sockets = (int *) calloc(1, sizeof(int));
     data->sockets[0] = socket;
     data->stop = 0;
     data->continueSimulation = 1;
     data->written = 0;
-    data->userName[USER_LENGTH] = '\0';
-    data->rows = data->rows ? data->rows : 0;
-    data->columns = data->columns ? data->columns : 0;
-    data->numberOfAnts = data->numberOfAnts ? data->numberOfAnts : 0;
+    data->numberOfClients = 1;
     data->step = 0;
+    data->ready = 0;
 
-    data->loadingType = NOT_SELECTED_LOADING_TYPE;
-    data->logicType = NOT_SELECTED_ANTS_LOGIC;
 
-    strncpy(data->userName, userName, USER_LENGTH);
-    printf("mutex: %d\n",pthread_mutex_init(&data->mutex, NULL) );
+    pthread_mutex_init(&data->mutex, NULL);
     pthread_mutex_init(&data->writtenMutex, NULL);
-    //pthread_cond_init(data->condStartListeningArray,NULL);
+
+    //conds init
     pthread_cond_init(&data->startAntSimulation, NULL);
     pthread_cond_init(&data->continueAntSimulation, NULL);
-    printLog("\tEND data_initClient");
+    pthread_cond_init(&data->updateClients, NULL);
+    data->condStartListeningArray == NULL;
+
 }
 
 void *data_writeDataClient(void *data) {
     printLog("CLIENT: void *data_writeData(void *data)");
     DATA *pdata = (DATA *)data;
 
-//    pthread_mutex_lock(&pdata->mutex);
-//        pthread_cond_wait(pdata->condStartListeningArray, &pdata->mutex);
-//        printf("After wait in writeData\n");
-//    pthread_mutex_unlock(&pdata->mutex);
 
     //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
@@ -62,23 +71,21 @@ void *data_writeDataClient(void *data) {
 
 void readInitData(DATA* pdata) {
     printLog("CLIENT: void readInitData(DATA* pdata)");
+
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     bzero(buffer, BUFFER_LENGTH);
+
     if (read(pdata->sockets[0], buffer, BUFFER_LENGTH) > 0) {
-    printf("BUFF----%s\n",buffer);
+        printf("BUFF----%s\n",buffer);
 
-    char *posActionEnd;
-    posActionEnd = strchr(buffer, ']');
+        char *posActionEnd;
+        posActionEnd = strchr(buffer, ']');
 
-    updateAllData(pdata,posActionEnd);
-    printData(pdata);
-    printf("Changed Shared date state\n");
+        updateAllData(pdata,posActionEnd);
+        printData(pdata);
+        printf("Changed Shared date state\n");
 
-
-    //makeAction(buffer,pdata);
-    //printf("readInitData: INCREMENTIG STEP\n");
-    //pdata->step++;
     }
     else {
         printf("ELSE STOP\n");
@@ -86,22 +93,6 @@ void readInitData(DATA* pdata) {
     }
 
     printActionQuestionByStep(pdata->step);
-
-
-    //pred pokusom
-//    while(!data_isStopped(pdata)) {
-//
-//
-//
-//        if (read(pdata->socket, buffer, BUFFER_LENGTH) > 0) {
-//            printf("BUFF----%s\n",buffer);
-//            makeAction(buffer,pdata);
-//        }
-//        else {
-//            printf("ELSE STOP\n");
-//            data_stop(pdata);
-//        }
-//    }
 
 }
 
@@ -120,18 +111,9 @@ void *data_readData(void *data) {
     buffer[BUFFER_LENGTH] = '\0';
     while(!data_isStopped(pdata)) {
         bzero(buffer, BUFFER_LENGTH);
-        printf("%s\n",buffer);
 
         if (read(pdata->sockets[0], buffer, BUFFER_LENGTH) > 0) {
             printf("XXXXXREAD DATA: %s\n",buffer);
-
-            if(checkIfQuit(buffer,pdata)) {
-
-            } else if(checkIfPause(buffer,pdata)) {
-
-            }  else if(checkIfContinue(buffer,pdata)) {
-
-            } else {
 
                 printf("%s \n", buffer);
                 printf("Before action\n");
@@ -143,8 +125,6 @@ void *data_readData(void *data) {
                 printf("STEP: %d\n",pdata->step);
                 printActionQuestionByStep(pdata->step);
                 pthread_mutex_unlock(&pdata->mutex);
-
-            }
         }
         else {
             printf("ELSE STOP\n");
@@ -236,6 +216,54 @@ void makeAction(char* buffer, DATA *pdata) {
 
 
     free( target );
+}
+
+bool semicolonAction(char* buffer, DATA *pdata) {
+
+    char* posSemi = strchr(buffer, ':');
+    char* posSemiSecond = strchr(posSemi+1, ':');
+
+    //IF SEMICOLON ACTION
+    if(posSemiSecond != NULL) {
+        if(posSemiSecond - posSemi == 2) {
+            char* userSemiAction;
+            bool match = true;
+            if(strcmp(posSemiSecond,endMsg) == 0) {
+                userSemiAction = "ukoncil komunikaciu";
+                data_stop(pdata);
+                //TODO SPRAVIT ABY vyplo celu simulaciu
+            } else if (strcmp(posSemiSecond,pauseMsg) == 0) {
+                userSemiAction = "pauzol simulaciu";
+                pthread_mutex_lock(&pdata->mutex);
+                pdata->continueSimulation = 0;
+//                printf("Contunie simulation = 0\n");
+                pthread_mutex_unlock(&pdata->mutex);
+            } else if (strcmp(posSemiSecond,continueMsg) == 0) {
+                userSemiAction = "odpauzoval simulaciu";
+                pthread_mutex_lock(&pdata->mutex);
+                pdata->continueSimulation = 1;
+                pthread_cond_broadcast(&pdata->continueAntSimulation);
+                pthread_mutex_unlock(&pdata->mutex);
+            } else if (strcmp(posSemiSecond,quitMsg) == 0) {
+                userSemiAction = "opustil komunikaciu";
+                //TODO DOROBIT LEN QUIT
+            } else {
+                match = false;
+            }
+
+            if(match) {
+                *(posSemiSecond - 2) = '\0';
+                printf("Pouzivatel %s %s.\n", buffer, userSemiAction);
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    return true;
 }
 
 void initSimulationSetting(DATA* pdata) {
@@ -618,8 +646,12 @@ bool checkIfQuit(char* buffer,DATA *pdata) {
 void data_destroy(DATA *data) {
     pthread_mutex_destroy(&data->mutex);
     pthread_mutex_destroy(&data->writtenMutex);
+
     pthread_cond_destroy(&data->startAntSimulation);
     pthread_cond_destroy(&data->continueAntSimulation);
+    pthread_cond_destroy(&data->updateClients);
+
+    free(data->sockets);
 }
 
 
@@ -714,6 +746,7 @@ int getDataByAction(char* posActionEnd, int action) {
 }
 
 void updateAllData(DATA* pdata,char* posActionEnd) {
+
     printf("UPDATE ALL DATA START: %s\n",posActionEnd+2);
     char* token = strtok(posActionEnd+2," ");
     //printf("TOKEN: %s\n",token);
@@ -726,38 +759,41 @@ void updateAllData(DATA* pdata,char* posActionEnd) {
         //printf("SWITCH i=%d temp=%d\n",i,tempNumber);
         switch (i) {
             case 0:
-                pdata->continueSimulation = tempNumber;
-                break;
-            case 1:
-                pdata->columns = tempNumber;
-                break;
-            case 2:
-                pdata->rows = tempNumber;
-                break;
-            case 3:
                 pdata->numberOfAnts = tempNumber;
                 break;
-            case 4:
+            case 1:
                 pdata->loadingType = tempNumber;
+
+                break;
+            case 2:
+                pdata->logicType = tempNumber;
+
+                break;
+            case 3:
+                pdata->rows = tempNumber;
+                break;
+            case 4:
+                pdata->columns = tempNumber;
                 break;
             case 5:
-                pdata->logicType = tempNumber;
-                break;
-            case 6:
                 pdata->stop = tempNumber;
                 break;
+            case 6:
+                pdata->continueSimulation = tempNumber;
+                break;
             case 7:
-                pdata->ready = tempNumber;
+                pdata->step = tempNumber;
+
                 break;
             case 8:
-                pdata->step = tempNumber;
+                pdata->ready = tempNumber;
                 break;
             default:
                 break;
         }
         token = strtok(NULL, " ");
     }
-    printf("UPDATE ALL DATA END: %s\n",posActionEnd+2);
+    //printf("UPDATE ALL DATA END: %s\n",posActionEnd+2);
 
 //    for (int i = 0; i < 7; i++) {
 //

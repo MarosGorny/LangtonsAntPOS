@@ -11,6 +11,7 @@
 
 
 void writeStateOfSharedData(DATA* pdata, int socket);
+bool semicolonAction(char* buffer, DATA *pdata);
 void *data_writeData(void *data);
 void *data_readData(void *data);
 void makeActionNew(char* buffer, DATA *pdata);

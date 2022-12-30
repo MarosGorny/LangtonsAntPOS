@@ -23,15 +23,15 @@ void writeStateOfSharedData(DATA* pdata, int socket){
     sprintf(buffer, "%s%s: %d %d %d %d %d %d %d %d %d\n"
                                                         ,pdata->userName\
                                                         ,action\
-                                                        ,pdata->continueSimulation\
-                                                        ,pdata->columns\
-                                                        ,pdata->rows\
                                                         ,pdata->numberOfAnts\
                                                         ,pdata->loadingType\
                                                         ,pdata->logicType\
+                                                        ,pdata->rows\
+                                                        ,pdata->columns\
                                                         ,pdata->stop\
-                                                        ,pdata->ready\
-                                                        ,pdata->step);
+                                                        ,pdata->continueSimulation\
+                                                        ,pdata->step\
+                                                        ,pdata->ready);
     char *pos = strchr(buffer, '\n');
     if (pos != NULL) {
         *pos = '\0';
@@ -271,6 +271,71 @@ void *data_readData(void *data) {
 
 
 void makeActionNew(char* buffer, DATA *pdata) {
+//    char* posSemi = strchr(buffer, ':');
+//    char* posSemiSecond = strchr(posSemi+1, ':');
+    if(!semicolonAction(buffer,pdata)) {
+        //IF NOT SEMICOLON ACTION
+        printf("STEP:%d\n",pdata->step);
+
+        char *target = NULL;
+        char *posActionBracketsStart = strchr(buffer, '[');
+        char *posActionBracketsEnd = strchr(buffer, ']');
+
+
+        if (posActionBracketsStart != NULL) {
+
+            target = (char *) malloc(posActionBracketsEnd - posActionBracketsStart + 2);
+            memcpy(target, posActionBracketsStart, posActionBracketsEnd - posActionBracketsStart + 1);
+            target[posActionBracketsEnd - posActionBracketsStart + 1] = '\0';
+
+            printf("Bracket Action: %s\n", target);
+
+            //printData(pdata);
+
+            bool addStep = true;
+            pthread_mutex_lock(&pdata->mutex);
+            if (strcmp(target, "[Number of ants]") == 0) {
+                pdata->numberOfAnts = atoi(posActionBracketsEnd + 2);
+                printf("Changed number of ants: %d\n", pdata->numberOfAnts);
+            } else if (strcmp(target, "[Loading type]") == 0) {
+                LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionBracketsEnd + 2) - 1;
+                pdata->loadingType = loadingType;
+                printf("Changed loading type: %d\n", pdata->loadingType);
+            } else if (strcmp(target, "[Logic type]") == 0) {
+                LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionBracketsEnd + 2) - 1;
+                pdata->logicType = logicType;
+                printf("Changed logic type: %d\n", pdata->logicType);
+            } else if (strcmp(target, "[Dimensions]") == 0) {
+                char *columnsCharPointer = strchr(posActionBracketsEnd + 3, ' ');
+                if (columnsCharPointer) printf("%s\n", columnsCharPointer);
+                if (columnsCharPointer == NULL) {
+                    pdata->columns = atoi(posActionBracketsEnd + 2);
+                } else {
+                    pdata->columns = atoi(columnsCharPointer);
+                }
+                pdata->rows = atoi(posActionBracketsEnd + 2);
+                printf("Changed rows: %d columns: %d\n", pdata->rows, pdata->columns);
+            } else if (strcmp(target, "[READY]") == 0) {
+                char *columnsCharPointer = strchr(posActionBracketsEnd, ' ');
+                int temp = atoi(columnsCharPointer);
+                if (temp == 1) {
+                    printf("ANTS ARE READY\n");
+                    pthread_cond_signal(&pdata->startAntSimulation);
+                } else {
+                    addStep = false;
+                    printf("ANTS ARE NOT READY\n");
+                }
+            }
+            //Add step
+            if (addStep) pdata->step++;
+            pthread_mutex_unlock(&pdata->mutex);
+            free(target);
+        }
+    }
+}
+
+bool semicolonAction(char* buffer, DATA *pdata) {
+
     char* posSemi = strchr(buffer, ':');
     char* posSemiSecond = strchr(posSemi+1, ':');
 
@@ -305,70 +370,17 @@ void makeActionNew(char* buffer, DATA *pdata) {
             if(match) {
                 *(posSemiSecond - 2) = '\0';
                 printf("Pouzivatel %s %s.\n", buffer, userSemiAction);
+            } else {
+                return false;
             }
+        } else {
+            return false;
         }
     } else {
-        //IF NOT SEMICOLON ACTION
-        printf("STEP:%d\n",pdata->step);
-
-        char *target = NULL;
-        char *posActionBracketsStart = strchr(buffer, '[');
-        char *posActionBracketsEnd = strchr(buffer, ']');
-
-
-        if (posActionBracketsStart != NULL) {
-
-            target = ( char * )malloc(posActionBracketsEnd - posActionBracketsStart + 2 );
-            memcpy(target, posActionBracketsStart, posActionBracketsEnd - posActionBracketsStart + 1);
-            target[posActionBracketsEnd - posActionBracketsStart + 1] = '\0';
-
-            printf("Bracket Action: %s\n",target);
-
-            //printData(pdata);
-
-            bool addStep = true;
-            pthread_mutex_lock(&pdata->mutex);
-            if (strcmp(target,"[Number of ants]") == 0) {
-                pdata->numberOfAnts = atoi(posActionBracketsEnd + 2);
-                printf("Changed number of ants: %d\n",pdata->numberOfAnts);
-            }else if (strcmp(target,"[Loading type]") == 0) {
-                LOADING_TYPE loadingType = (LOADING_TYPE) atoi(posActionBracketsEnd + 2) - 1;
-                pdata->loadingType = loadingType;
-                printf("Changed loading type: %d\n",pdata->loadingType);
-            }else if (strcmp(target,"[Logic type]") == 0) {
-                LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionBracketsEnd + 2) - 1;
-                pdata->logicType = logicType;
-                printf("Changed logic type: %d\n",pdata->logicType);
-            } else if (strcmp(target,"[Dimensions]") == 0) {
-                char *columnsCharPointer = strchr(posActionBracketsEnd + 3, ' ');
-                if ( columnsCharPointer ) printf( "%s\n", columnsCharPointer );
-                if(columnsCharPointer == NULL) {
-                    pdata->columns = atoi(posActionBracketsEnd + 2);
-                } else {
-                    pdata->columns = atoi(columnsCharPointer);
-                }
-                pdata->rows = atoi(posActionBracketsEnd + 2);
-                printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
-            } else if (strcmp(target,"[READY]") == 0) {
-                char *columnsCharPointer = strchr(posActionBracketsEnd, ' ');
-                int temp = atoi(columnsCharPointer);
-                if (temp == 1) {
-                    printf("ANTS ARE READY\n");
-                    pthread_cond_signal(&pdata->startAntSimulation);
-                } else {
-                    addStep = false;
-                    printf("ANTS ARE NOT READY\n");
-                }
-            }
-            //Add step
-            if(addStep) pdata->step++;
-            pthread_mutex_unlock(&pdata->mutex);
-            free( target );
-        }
-        //if ( target ) printf( "%s\n", target );
+        return false;
     }
+    return true;
 }
-
 
 
 

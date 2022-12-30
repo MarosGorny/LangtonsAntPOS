@@ -46,30 +46,34 @@ int main(int argc, char *argv[]) {
 
     //inicializacia dat zdielanych medzi vlaknami
     printf("Socket = %d\n",sock);
-    pthread_cond_t startListeningCond = PTHREAD_COND_INITIALIZER;
+
+
     DATA data;
-    data.condStartListeningArray = &startListeningCond;
-    data.sockets = (int *) calloc(1, sizeof(int));
     data_initClient(&data, userName,sock);
 
+//    pthread_cond_t startListeningCond = PTHREAD_COND_INITIALIZER;
+//    //data.condStartListeningArray = &startListeningCond;
+
     readInitData(&data);
+
     //vytvorenie vlakna pre zapisovanie dat do socketu <pthread.h>
     pthread_t thread;
     pthread_create(&thread, NULL,data_writeDataClient, (void *)&data);
 
     //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
-    //data_readData((void *)&data);
     data_readData((void *)&data);
 
     //pockame na skoncenie zapisovacieho vlakna <pthread.h>
     pthread_join(thread, NULL);
 
+    //uzavretie socketu <unistd.h>
+    close(sock);
+
     //TODO SPRAVIT DESTROY AJ PRE DATA
     data_destroy(&data);
 
-    free(data.sockets);
-    //uzavretie socketu <unistd.h>
-    close(sock);
+
+
 
     return (EXIT_SUCCESS);
 }

@@ -32,5 +32,6 @@ void printError(char *str);
 char* printActionQuestionByStep(int step);
 int getDataByAction(char* posActionEnd, int action);
 void updateAllData(DATA* pdata,char* posActionEnd);
+bool semicolonAction(char* buffer, DATA *pdata);
 
 #endif //LANGTONSANTPOS_CLIENT_DEFINITION_H

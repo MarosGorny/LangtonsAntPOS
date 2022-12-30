@@ -11,7 +11,7 @@
 
 #include "pthread.h"
 #include <arpa/inet.h>
-//#include "client_server_definitions.h"
+
 
 #define USER_LENGTH 10
 #define BUFFER_LENGTH 300
@@ -46,12 +46,6 @@ typedef enum backgroundColor {
 
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
-
-//typedef struct acceptData {
-//    int serverSocket;
-//    SA_IN* client_addr;
-//    int* addr_size;
-//}ACCEPT_DATA;
 
 typedef struct data {
     char userName[USER_LENGTH + 1];

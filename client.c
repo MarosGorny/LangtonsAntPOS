@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     pthread_create(&thread, NULL,data_writeDataClient, (void *)&data);
 
     //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
-    data_readData((void *)&data);
+    data_readDataClient((void *)&data);
 
     //pockame na skoncenie zapisovacieho vlakna <pthread.h>
     pthread_join(thread, NULL);
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     close(sock);
 
     //TODO SPRAVIT DESTROY AJ PRE DATA
-    data_destroy(&data);
+    data_destroyClient(&data);
 
 
 

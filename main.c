@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include "structuresEnums.h"
 #include "server_definition.h"
+#include "client_server_definitions.h"
 
 
 //void* serverRead(void* data) {
@@ -334,8 +335,8 @@ int main(int argc,char* argv[]) {
             pthread_mutex_unlock(&data.mutex);
 
             writeStateOfSharedData(&data,data.sockets[numberOfClients]);
-            pthread_create(&threadWrite[numberOfClients], NULL, data_writeData, (void *) &data);
-            pthread_create(&threadRead[numberOfClients], NULL, data_readData, (void *) &data);
+            pthread_create(&threadWrite[numberOfClients], NULL, data_writeDataServer, (void *) &data);
+            pthread_create(&threadRead[numberOfClients], NULL, data_readDataServer, (void *) &data);
             pthread_cond_init(&data.condStartListeningArray[numberOfClients], NULL);
 
             printf("Client[%d] connected = socket%d!\n", numberOfClients,clientSocket);
@@ -365,7 +366,7 @@ int main(int argc,char* argv[]) {
         close(data.sockets[i]);
     }
 
-    data_destroy(&data);
+    data_destroyServer(&data);
 
     return (EXIT_SUCCESS);
 

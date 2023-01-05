@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <stdlib.h>
+#include <errno.h>
 
 char* endMsg = ":end";
 char* pauseMsg = ":pause";
@@ -86,16 +87,73 @@ void *data_readDataServer(void *data) {
 
     //printf("BEFORE WHILE\n");
     while(!data_isStopped(pdata)) {
+        int n = 0;
         //printf("Client:%d INSIDE WHILE\n",idClient);
         bzero(buffer, BUFFER_LENGTH);
         if (read(socket, buffer, BUFFER_LENGTH) > 0) {
             //printf("Client:%d INSIDE READ\n",idClient);
 
+//            FILE *fptr;
+//            //fptr = fopen("../txtFiles/writedFile-.txt","w");
+//            time_t t = time(NULL);
+//            struct tm tm = *localtime(&t);
+//            char fileNameString[50];
+//            sprintf(fileNameString, "/home/gorny/txt.txt");
+//            if ((fptr = fopen(fileNameString,"w")) == NULL){
+//                printf("Error! opening file");
+//            } else {
+//                fprintf(fptr,"%s", "ahoj\n");
+//            }
+//
+//            printf("CLOSING FILE\n");
+//            fclose(fptr);
+//            printf("CLOSED FILE\n");
+
+//#include <unistd.h>
+//#include <sys/types.h>
+//#include <pwd.h>
+//
+//            struct passwd pwd;
+//            struct passwd *result;
+//            char *buf;
+//            size_t bufsize;
+//            int s;
+//            bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+//            if (bufsize == -1)
+//                bufsize = 0x4000; // = all zeroes with the 14th bit set (1 << 14)
+//            buf = malloc(bufsize);
+//            if (buf == NULL) {
+//                perror("malloc");
+//                exit(EXIT_FAILURE);
+//            }
+//            s = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
+//            if (result == NULL) {
+//                if (s == 0)
+//                    printf("Not found\n");
+//                else {
+//                    errno = s;
+//                    perror("getpwnam_r");
+//                }
+//                exit(EXIT_FAILURE);
+//            }
+//            char *homedir = result->pw_dir;
+//            printf("HOMEDIR %s\n",homedir);
+
 
             makeActionNew(buffer,pdata);
 
             //readMakeAction(buffer,pdata);
-            pthread_cond_broadcast(&pdata->updateClients);
+
+            if(pdata->step == 5)
+                n++;
+            if(pdata->step == 5 && n > 1) {
+
+            } else {
+                pthread_cond_broadcast(&pdata->updateClients);
+            }
+
+
+
 
         }
         else {
@@ -119,7 +177,14 @@ void makeActionNew(char* buffer, DATA *pdata) {
         char *posActionBracketsStart = strchr(buffer, '[');
         char *posActionBracketsEnd = strchr(buffer, ']');
 
-
+//        if(pdata->step == 5) {
+//
+//            if(pdata->loadingType == FILE_INPUT_LOCAL) {
+//                printf("INSIDE FILE INPUT_LOCAL\n");
+//                write_file(pdata->sockets[1]);
+//                printf("OUTSIDE FILE INPUT_LOCAL\n");
+//            }
+//        } else
         if (posActionBracketsStart != NULL) {
 
             target = (char *) malloc(posActionBracketsEnd - posActionBracketsStart + 2);
@@ -182,6 +247,50 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     addStep = false;
                 }
 
+            } else if (strcmp(target,"[FileL]") == 0) {
+//                if(pdata->step == 5) {
+//                    pdata->step++;
+//                }
+
+               // write_file(pdata->sockets[1]);
+
+                addStep = false;
+                printf("else if (strcmp(target,\"[FileL]\") == 0)\n");
+                FILE *fptr;
+                //fptr = fopen("../txtFiles/writedFile-.txt","w");
+
+                if ((fptr = fopen("/home/gorny/temp.txt","a")) == NULL){
+                    printf("Error! opening file");
+                }
+                if(fptr == NULL) {
+                    printf("Error writing\n");
+                } else {
+                    printf("writed:%s\n",posActionBracketsEnd+2);
+                    printf("%s\n",posActionBracketsEnd+3);
+                    if(strcmp(posActionBracketsEnd+3,"END") == 0) {
+                        addStep = true;
+                        //fprintf(fptr,"%s", posActionBracketsEnd + 2);
+                    } else {
+                        fprintf(fptr,"%s", posActionBracketsEnd + 2);
+                    }
+
+                }
+                printf("CLOSING FILE\n");
+                fclose(fptr);
+                printf("CLOSED FILE\n");
+
+
+//                if(addStep) {
+//                    int rows;
+//                    int columns;
+//                    fptr = fopen("/home/gorny/temp.txt","r");
+//                    fscanf(fptr,"%d", &rows);
+//                    fscanf(fptr,"%d", &columns);
+//
+//                }
+
+
+
             } else if (strcmp(target, "[READY]") == 0) {
                 char *columnsCharPointer = strchr(posActionBracketsEnd, ' ');
                 int temp = atoi(columnsCharPointer);
@@ -195,6 +304,7 @@ void makeActionNew(char* buffer, DATA *pdata) {
             }
             //Add step
             if (addStep) pdata->step++;
+            if(addStep) printf("ADDED STEP ++\n");
             pthread_mutex_unlock(&pdata->mutex);
             free(target);
             printf("Dosal sa von\n");
@@ -296,6 +406,27 @@ void data_init(DATA *data, const char* userName) {
     pthread_cond_init(&data->startAntSimulation, NULL);
     pthread_cond_init(&data->continueAntSimulation, NULL);
     pthread_cond_init(&data->updateClients, NULL);
+}
+
+void write_file(int socket) {
+    printLogServer("void write_file(int socket)");
+    int n;
+    FILE *fptrRead;
+    char *filename = "prijate.txt";
+    char buffer[BUFFER_LENGTH];
+    fptrRead = fopen(filename, "w");
+    while (1) {
+        printLogServer("REAAD WHILE 1");
+        n = read(socket, buffer, BUFFER_LENGTH);
+        if (n <= 0) {
+            break;
+            return;
+        }
+        fprintf(fptrRead, "%s", buffer);
+        printf("%s\n",buffer);
+        bzero(buffer, BUFFER_LENGTH);
+    }
+
 }
 
 

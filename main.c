@@ -53,7 +53,7 @@ void* antSimulation(void* data) {
     // split into frames from wiki
     // https://ezgif.com/split/ezgif-2-6771e98488.gif
 
-//    FILE *fptrRead;
+    FILE *fptrRead;
 //
 
     bool repeat = true;
@@ -81,9 +81,19 @@ void* antSimulation(void* data) {
         logicType = pdata->logicType;
         loadingType = pdata->loadingType;
         pthread_mutex_unlock(&pdata->mutex);
+
+        if(loadingType == FILE_INPUT_LOCAL) {
+            int temp;
+            fptrRead = fopen("/home/gorny/temp.txt","r");
+            fscanf(fptrRead,"%d", &temp);
+            rows = temp;
+            fscanf(fptrRead,"%d", &temp);
+            columns = temp;
+        }
+
         printf("After taking data from pdata game\n");
 
-    //    if(loadingType == FILE_INPUT ) {
+    //    if(loadingType == FILE_INPUT_LOCAL ) {
     //        getNumberRowsCollumns(fptrRead,&rows,&columns);
     //    }
         printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
@@ -108,12 +118,7 @@ void* antSimulation(void* data) {
             chanceOfBlackBox = getChanceOfBlackBox();
         }
 
-    //    if(loadingType == FILE_INPUT) {
-    //        int temp;
-    //        fptrRead = fopen("../txtFiles/test.txt","r");
-    //        fscanf(fptrRead,"%d", &temp);
-    //        fscanf(fptrRead,"%d", &temp);
-    //    }
+
 
         //Initialization of boxes and creating
 
@@ -137,8 +142,8 @@ void* antSimulation(void* data) {
                     case RANDOM_COLOR:
                         initBoxRandom(boxData,chanceOfBlackBox);
                         break;
-                    case FILE_INPUT:
-    //                    initBoxFile(boxData,fptrRead);
+                    case FILE_INPUT_LOCAL:
+                        initBoxFile(boxData,fptrRead);
                         break;
                     default:
                         //TODO WHAT TO PRINT?
@@ -149,9 +154,10 @@ void* antSimulation(void* data) {
                 boxData->mut = &boxMutexes[i][j];
             }
         }
-    //    if(loadingType == FILE_INPUT) {
-    //        fclose(fptrRead);
-    //    }
+        if(loadingType == FILE_INPUT_LOCAL) {
+            fclose(fptrRead);
+            remove("/home/gorny/temp.txt");
+        }
         if (loadingType == TERMINAL_INPUT) {
             for (int i = 0; i < rows; i++) {
                 for (int j = 0; j < columns; j++) {

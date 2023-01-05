@@ -18,6 +18,8 @@ void makeActionNew(char* buffer, DATA *pdata);
 void data_destroyServer(DATA *data);
 void data_init(DATA *data, const char* userName);
 
+void write_file(int socket);
+
 
 
 

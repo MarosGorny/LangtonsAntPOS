@@ -7,6 +7,7 @@
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <bits/types/FILE.h>
 #include "structuresEnums.h"
 
 
@@ -22,5 +23,8 @@ void data_destroyClient(DATA *data);
 
 void* printActionQuestionByStep(int step,DATA* pdata);
 void updateAllData(DATA* pdata,char* posActionEnd);
+
+
+void send_file(char* buffer, FILE *pFile, int socket,DATA* pdata);
 
 #endif //LANGTONSANTPOS_CLIENT_DEFINITION_H

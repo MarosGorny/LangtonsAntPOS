@@ -23,7 +23,8 @@ typedef enum loadingType {
     ALL_WHITE = 0,
     RANDOM_COLOR = 1,
     TERMINAL_INPUT = 2,
-    FILE_INPUT = 3,
+    FILE_INPUT_LOCAL = 3,
+    FILE_INPUT_SERVER = 4,
 }LOADING_TYPE;
 
 typedef enum logicType {
@@ -92,8 +93,9 @@ typedef enum actionCode {
     LOADING_TYPE_ACTION = 2,
     LOGIC_TYPE_ACTION = 3,
     DIMENSION_ACTION = 4,
-    SELECTING_BLACK_BOXES = 99,
-    READY_ACTION = 5,
+    SELECTING_BLACK_BOXES = 45,
+    FILE_ACTION = 5,
+    READY_ACTION = 6,
 }ACTION_CODE;
 
 typedef struct display{

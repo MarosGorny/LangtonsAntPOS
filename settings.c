@@ -92,7 +92,7 @@ void initBoxData(BOX* boxData, LOADING_TYPE loadingType) {
         case TERMINAL_INPUT:
             //TODO FUNCTION TO INIT TERMINAL INPUT
             break;
-        case FILE_INPUT:
+        case FILE_INPUT_LOCAL:
             //TODO FUNCTION TO INIT FILE INPUT
             break;
         default:
@@ -104,10 +104,11 @@ void initBoxData(BOX* boxData, LOADING_TYPE loadingType) {
 void initBoxFile(BOX* boxData, FILE* file) {
     int tempColorBox;
     if((tempColorBox = fgetc(file)) != EOF) {
-        while (tempColorBox == 13 || tempColorBox == 10) {
+        while (tempColorBox == 13 || tempColorBox == 10 || tempColorBox == 32) {
             tempColorBox = fgetc(file);
         }
     }
+    printf(" print %d",tempColorBox);
     tempColorBox -= 48; //ASCII to number
     if(tempColorBox == 1) {
         boxData->color = BLACK;

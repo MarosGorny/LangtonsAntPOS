@@ -18,7 +18,9 @@ char* continueMsg = ":continue";
 char* quitMsg = ":quit";
 
 
-void data_initClient(DATA* data, const char* userName,int socket) {
+//void send_file(FILE *pFile, int i);
+
+void data_initClient(DATA* data, const char* userName, int socket) {
     printLog("CLIENT: void data_initClient(DATA *data, const char* userName,int socket)");
 
     data->userName[USER_LENGTH] = '\0';
@@ -206,9 +208,12 @@ void initSimulationSetting(DATA* pdata) {
                 writeToSocketByAction(pdata,DIMENSION_ACTION);
                 break;
             case 5:
-                writeToSocketByAction(pdata,READY_ACTION);
+                writeToSocketByAction(pdata,FILE_ACTION);
                 break;
             case 6:
+                writeToSocketByAction(pdata,READY_ACTION);
+                break;
+            case 7:
                 writeToSocketByAction(pdata,UKNOWN_ACTION);
                 break;
             default:
@@ -216,7 +221,7 @@ void initSimulationSetting(DATA* pdata) {
         }
 
 
-        if(step >= 6) {
+        if(step >= 7) {
             //TODO CONTINUE/PAUSE DOROBIT DO SWITCHu
         }
     }
@@ -232,7 +237,8 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
         printf("1: All squares are white.\n");
         printf("2: Square color is random.\n");
         printf("3: Select black squares through the terminal input.\n");
-        printf("4: Load dimension and squares colors from file.\n");
+        printf("4: Load dimension and squares colors from LOCAL file.\n");
+        printf("5: Load dimension and squares colors from SERVER file.\n");
         printf("Q: Quit simulation\n");
         //return "[Loading type]";
     } else if (step == 3) {
@@ -243,7 +249,7 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
         //return "[Logic type]";
     } else if (step == 4) {
 
-        if(!pdata->rows > 0) {
+        if(pdata->rows <= 0) {
             printf("\nSelect dimensions of ground, [write rows and columns, divided by space]\n");
         } else {
             printf("\nSelect black boxes, [write X and Y, divided by space]\n");
@@ -252,6 +258,13 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
 
         //return "[Dimensions]";
     } else if (step == 5) {
+        if(pdata->loadingType == FILE_INPUT_LOCAL) {
+            printf("\nWrite name of the file on your computer?\n");
+        } else if (pdata->loadingType == FILE_INPUT_SERVER){
+            printf("\nWrite name of the file on server?\n");
+        }
+
+    } else if (step == 6) {
         printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
         //return "[READY]";
     }
@@ -294,8 +307,21 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
         action = getActionStringInBracket(SELECTING_BLACK_BOXES);
         printf("action = getActionStringInBracket(SELECTING_BLACK_BOXES);\n");
     } else {
-        action = getActionStringInBracket(actionCode);
-        printf("action = getActionStringInBracket(actionCode);\n");
+        if(tempStep == 5) {
+            if(pdata->loadingType==FILE_INPUT_LOCAL) {
+                action = "[FileL]";
+                printf("action = FileL;\n");
+                writeToSocketAndSetSharedAntsData(pdata,FILE_ACTION,buffer,NULL);
+                //printf("GOTO EXIT FILE INPUT_LOCAL\n");
+                //goto exit;
+            } else if (pdata->loadingType==FILE_INPUT_SERVER) {
+                action = "[FileS]";
+                printf("action = FileS;\n");
+            }
+        } else {
+            action = getActionStringInBracket(actionCode);
+            printf("action = getActionStringInBracket(actionCode);\n");
+        }
     }
 
 
@@ -359,7 +385,7 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
 
 
 
-bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart) {
+bool writeToSocketAndSetSharedAntsData(DATA* pdata, ACTION_CODE actionCode, char* buffer, char* textStart) {
     printLog("writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart)");
     printf("BUFFER IN SOCKET %s\n",buffer);
     printf("SOCKEEEEEEEEEEEET %d\n",pdata->sockets[0]);
@@ -389,8 +415,12 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
                 tempLoadType = TERMINAL_INPUT;
                 break;
             case'4':
-                printf("Load dimension and squares color from file.\n");
-                tempLoadType = FILE_INPUT;
+                printf("Load dimension and squares color from local file.\n");
+                tempLoadType = FILE_INPUT_LOCAL;
+                break;
+            case'5':
+                printf("Load dimension and squares color from server file.\n");
+                tempLoadType = FILE_INPUT_LOCAL;
                 break;
             case'Q':
             case'q':
@@ -476,6 +506,29 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
                 printf("POSTIONS x:%d, y:%d\n",x,y);
             }
         }
+    } else if (actionCode == FILE_ACTION) {
+        printf("FILE ACTION\n");
+        if(pdata->loadingType == FILE_INPUT_LOCAL) {
+            printf("FILE ACTION LOCAL\n");
+            //TODO nacitat z lokalneho suboru a poslat na server alebo poslat cely subor
+
+            FILE *fptrRead;
+            if ((fptrRead = fopen("../txtFiles/test.txt","r")) == NULL){
+                printf("Error! opening file");
+            } else {
+                printf("SENDING FILE\n");
+                send_file(buffer, fptrRead, pdata->sockets[0],pdata);
+//                fscanf(fptrRead,"%d", &pdata->rows);
+//                fscanf(fptrRead,"%d", &pdata->columns);
+                printf("SENDED FILE\n");
+                return true;
+            }
+        } else if (pdata->loadingType == FILE_INPUT_SERVER) {
+            printf("FILE ACTION SERVER\n");
+            //TODO dat ziadost serveru, nech posle subor vsetkym klientom
+            return true;
+        }
+
     } else if (actionCode == READY_ACTION) {
         printf("IN READY\n");
         int temp = atoi(textStart);
@@ -492,6 +545,45 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char*
     }
     return false;
 
+}
+
+void send_file(char* buffer, FILE *pFile, int socket,DATA* pdata) {
+    printLog("void send_file(FILE *pFile, int socket)");
+    char* action = "[FileL]";
+    int userNameLength = strlen(pdata->userName);
+    int countCharAfterName = 2 + strlen(action);
+    sprintf(buffer, "%s%s: ", pdata->userName,action);
+    char *textStart = buffer + (userNameLength + countCharAfterName);
+    int n = 0;
+    while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), pFile) != NULL)  {
+        printf("FILE TO WRITE: %s\n",buffer);
+        usleep(500);
+        if(write(pdata->sockets[0], buffer, strlen(buffer) + 1) < 0) {
+            printf("ERRRRRRRRRRR\n");
+        } else {
+            printf("Successfull\n");
+        }
+    }
+    //sleep(6);
+
+
+
+
+//    //int n;
+//
+//    char data[BUFFER_LENGTH + 1];
+//    data[BUFFER_LENGTH] = '\0';
+//    //char data[BUFFER_LENGTH];
+//
+//    while(fgets(data, BUFFER_LENGTH, pFile) != NULL) {
+//        if (send(socket, data, sizeof(data), 0) == -1) {
+//            perror("[-]Error in sending file.");
+//            exit(1);
+//        }
+//        bzero(data, BUFFER_LENGTH);
+//    }
+    printLog("OUT OF: void send_file(FILE *pFile, int socket)");
+    pdata->step++;
 }
 
 

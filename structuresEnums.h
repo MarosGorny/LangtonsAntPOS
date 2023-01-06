@@ -64,6 +64,7 @@ typedef struct data {
     int numberOfClients;
     int step;
     int ready;
+    int download;
 
     pthread_mutex_t mutex;
     pthread_mutex_t writtenMutex;
@@ -96,6 +97,8 @@ typedef enum actionCode {
     SELECTING_BLACK_BOXES = 45,
     FILE_ACTION = 5,
     READY_ACTION = 6,
+    WAITING_ACTION = 7,
+    DOWNLOAD_ACTION = 8,
 }ACTION_CODE;
 
 typedef struct display{

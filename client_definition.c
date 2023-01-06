@@ -40,6 +40,7 @@ void data_initClient(DATA* data, const char* userName, int socket) {
     data->numberOfClients = 1;
     data->step = 0;
     data->ready = 0;
+    data->download = 0;
 
 
     pthread_mutex_init(&data->mutex, NULL);
@@ -132,12 +133,44 @@ void *data_readDataClient(void *data) {
 void readMakeAction(char* buffer, DATA *pdata) {
     printLog("CLIENT: void readMakeAction(char* buffer, DATA *pdata)");
     printf("STEP: %d\n",pdata->step);
+    printf("BUFFER:%s\n",buffer);
     char *target = NULL;
     char *posActionBracketsStart = strchr(buffer, '[');
     char *posActionBracketsEnd = strchr(buffer, ']');
 
+    if(pdata->step == 9) {
+        printf("PDATA STEP 9 READING FROM FILE\n");
+        target = (char *) malloc(posActionBracketsEnd - posActionBracketsStart + 2);
+        memcpy(target, posActionBracketsStart, posActionBracketsEnd - posActionBracketsStart + 1);
+        target[posActionBracketsEnd - posActionBracketsStart + 1] = '\0';
 
-    if (posActionBracketsStart != NULL) {
+        printf("Bracket Action: %s\n", target);
+
+
+        FILE *fptr;
+        //fptr = fopen("../txtFiles/writedFile-.txt","w");
+
+        if ((fptr = fopen("/home/gorny/tempLocal.txt","a")) == NULL){
+            printf("Error! opening file");
+        }
+        if(fptr == NULL) {
+            printf("Error writing\n");
+        } else {
+            printf("writed:%s\n",posActionBracketsEnd+2);
+            printf("%s\n",posActionBracketsEnd+3);
+            if(strcmp(posActionBracketsEnd+3,"END") == 0) {
+                //fprintf(fptr,"%s", posActionBracketsEnd + 2);
+            } else {
+                fprintf(fptr,"%s", posActionBracketsEnd + 2);
+            }
+
+        }
+        printf("CLOSING FILE\n");
+        fclose(fptr);
+        printf("CLOSED FILE\n");
+
+
+    } else if (posActionBracketsStart != NULL) {
         printf("INSIDE if (posActionBracketsStart != NULL)\n ");
 
 
@@ -147,7 +180,10 @@ void readMakeAction(char* buffer, DATA *pdata) {
         pthread_mutex_unlock(&pdata->mutex);
 
 
+
         updateAllData(pdata, posActionBracketsEnd);
+
+
         switch (step) {
             case 0:
                 printf("Changed Shared date state\n");
@@ -189,13 +225,13 @@ void initSimulationSetting(DATA* pdata) {
     printf("STEP %d\n",pdata->step);
 
     while(!data_isStopped(pdata)) {
-        printf("DATA IS STOPPED?:%d\n",pdata->stop);
+        //printf("DATA IS STOPPED?:%d\n",pdata->stop);
         //if(pdata->numberOfAnts <= 0) {
         pthread_mutex_lock(&pdata->mutex);
         int step = pdata->step;
         pthread_mutex_unlock(&pdata->mutex);
 
-        printf(" initSimulationSetting STEP: %d",pdata->step);
+        //printf(" initSimulationSetting STEP: %d",pdata->step);
         switch (step) {
             case 1:
                 writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION);
@@ -216,8 +252,10 @@ void initSimulationSetting(DATA* pdata) {
                 writeToSocketByAction(pdata,READY_ACTION);
                 break;
             case 7:
-                writeToSocketByAction(pdata,UKNOWN_ACTION);
+                writeToSocketByAction(pdata,WAITING_ACTION);
                 break;
+            case 8:
+                writeToSocketByAction(pdata,DOWNLOAD_ACTION);
             default:
                 break;
         }
@@ -269,6 +307,13 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
     } else if (step == 6) {
         printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
         //return "[READY]";
+    } else if (step == 7) {
+        printf("\nWaiting for simulation\n");
+    } else if (step == 8) {
+        printf("\nWhere do you want to download finished world? [write number and press enter]\n");
+        printf("1: Server.\n");
+        printf("2: My computer.\n");
+        printf("3: Nowhere.\n");
     }
 
     //return "";
@@ -289,6 +334,10 @@ char* getActionStringInBracket(ACTION_CODE actionCode) {
             return "[SELECTING BLACK BOXES]";
         case READY_ACTION:
             return "[READY]";
+        case WAITING_ACTION:
+            return "";
+        case DOWNLOAD_ACTION:
+            return "[DOWNLOAD]";
         default:
             return "";
     }
@@ -521,8 +570,6 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata, ACTION_CODE actionCode, char
             } else {
                 printf("SENDING FILE\n");
                 send_file(buffer, fptrRead, pdata->sockets[0],pdata);
-//                fscanf(fptrRead,"%d", &pdata->rows);
-//                fscanf(fptrRead,"%d", &pdata->columns);
                 printf("SENDED FILE\n");
                 return true;
             }
@@ -542,8 +589,18 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata, ACTION_CODE actionCode, char
             //reset_written(pdata);
             return true;
         }
+    } else if (actionCode == WAITING_ACTION) {
+        printLog("INSIDE WAITING ACTION - CLIENT");
+    } else if (actionCode == DOWNLOAD_ACTION) {
+        printLog("INSIDE DOWNLOAD ACTION - CLIENT");
+        int temp = atoi(textStart);
+        if(temp >= 1 && temp <= 3) {
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+            return true;
+        }
     } else {
         write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+        printLog("INSIDE ELSE WRITE TO SOCKET - CLIENT");
         return false;
     }
     return false;
@@ -570,21 +627,6 @@ void send_file(char* buffer, FILE *pFile, int socket,DATA* pdata) {
     //sleep(6);
 
 
-
-
-//    //int n;
-//
-//    char data[BUFFER_LENGTH + 1];
-//    data[BUFFER_LENGTH] = '\0';
-//    //char data[BUFFER_LENGTH];
-//
-//    while(fgets(data, BUFFER_LENGTH, pFile) != NULL) {
-//        if (send(socket, data, sizeof(data), 0) == -1) {
-//            perror("[-]Error in sending file.");
-//            exit(1);
-//        }
-//        bzero(data, BUFFER_LENGTH);
-//    }
     printLog("OUT OF: void send_file(FILE *pFile, int socket)");
     pdata->step++;
 }
@@ -605,7 +647,7 @@ void data_destroyClient(DATA *data) {
 
 
 void updateAllData(DATA* pdata,char* posActionEnd) {
-
+    printLog("void updateAllData(DATA* pdata,char* posActionEnd)");
     printf("UPDATE ALL DATA START: %s\n",posActionEnd+2);
     char* token = strtok(posActionEnd+2," ");
     //printf("TOKEN: %s\n",token);
@@ -613,7 +655,7 @@ void updateAllData(DATA* pdata,char* posActionEnd) {
 
     // loop through the string to extract all other tokens
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 10; i++) {
         tempNumber = atoi(token);
         //printf("SWITCH i=%d temp=%d\n",i,tempNumber);
         switch (i) {
@@ -622,11 +664,9 @@ void updateAllData(DATA* pdata,char* posActionEnd) {
                 break;
             case 1:
                 pdata->loadingType = tempNumber;
-
                 break;
             case 2:
                 pdata->logicType = tempNumber;
-
                 break;
             case 3:
                 pdata->rows = tempNumber;
@@ -647,6 +687,8 @@ void updateAllData(DATA* pdata,char* posActionEnd) {
             case 8:
                 pdata->ready = tempNumber;
                 break;
+            case 9:
+                pdata->download = tempNumber;
             default:
                 break;
         }

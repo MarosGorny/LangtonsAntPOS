@@ -4,6 +4,7 @@
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <bits/types/FILE.h>
 #include "structuresEnums.h"
 
 #ifndef LANGTONSANTPOS_SERVER_DEFINITION_H
@@ -19,6 +20,7 @@ void data_destroyServer(DATA *data);
 void data_init(DATA *data, const char* userName);
 
 void write_file(int socket);
+void send_fileServer(int socket,DATA* pdata);
 
 
 

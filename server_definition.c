@@ -21,7 +21,7 @@ void writeStateOfSharedData(DATA* pdata, int socket){
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     char* action = "[Shared date state]";
-    sprintf(buffer, "%s%s: %d %d %d %d %d %d %d %d %d\n"
+    sprintf(buffer, "%s%s: %d %d %d %d %d %d %d %d %d %d\n"
                                                         ,pdata->userName\
                                                         ,action\
                                                         ,pdata->numberOfAnts\
@@ -32,7 +32,8 @@ void writeStateOfSharedData(DATA* pdata, int socket){
                                                         ,pdata->stop\
                                                         ,pdata->continueSimulation\
                                                         ,pdata->step\
-                                                        ,pdata->ready);
+                                                        ,pdata->ready\
+                                                        ,pdata->download);
                                                         //TODO Ak by som chcel na poziciu blacBox pridat x a y akontrolovat zmenu
     char *pos = strchr(buffer, '\n');
     if (pos != NULL) {
@@ -59,8 +60,20 @@ void *data_writeDataServer(void *data) {
 
     while(!data_isStopped(pdata)) {
         pthread_mutex_lock(&pdata->mutex);
+        printf("WRITE CAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA na WAIT\n");
         pthread_cond_wait(&pdata->updateClients,&pdata->mutex);
-        writeStateOfSharedData(pdata,pdata->sockets[idClient]);
+
+
+        printf("STEP IN WRITEDATA:%d %d\n",pdata->step,pdata->download);
+        if(pdata->step == 9 && pdata->download != 0) {
+            writeStateOfSharedData(pdata,pdata->sockets[idClient]);
+            send_fileServer(pdata->sockets[idClient],pdata);
+        } else {
+            writeStateOfSharedData(pdata,pdata->sockets[idClient]);
+        }
+
+
+
         pthread_mutex_unlock(&pdata->mutex);
     }
 
@@ -322,6 +335,20 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     addStep = false;
                     printf("ANTS ARE NOT READY\n");
                 }
+            } else if (strcmp(target,"[DOWNLOAD]") == 0) {
+                //TODO SPRAVIT STAHOVANIE SUBORU
+                int temp = atoi(posActionBracketsEnd + 2);
+                pdata->download = temp;
+                printf("Download changed to: %d\n", pdata->download);
+
+                if(temp == 1) {   // server
+                    pthread_cond_signal(&pdata->continueAntSimulation);
+                } else if (temp == 2) { //local
+                    pthread_cond_signal(&pdata->continueAntSimulation);
+                } else if (temp == 3) { // nowhere
+                    //TODO NOTHING
+                }
+
             }
             //Add step
             if (addStep) pdata->step++;
@@ -347,7 +374,6 @@ bool semicolonAction(char* buffer, DATA *pdata) {
                 userSemiAction = "ukoncil komunikaciu";
                 data_stop(pdata);
                 shutdown(pdata->sockets[0],2);
-                //TODO SPRAVIT ABY vyplo celu simulaciu
             } else if (strcmp(posSemiSecond,pauseMsg) == 0) {
                 userSemiAction = "pauzol simulaciu";
                 pthread_mutex_lock(&pdata->mutex);
@@ -455,6 +481,49 @@ void write_file(int socket) {
         bzero(buffer, BUFFER_LENGTH);
     }
 
+}
+
+void send_fileServer(int socket,DATA* pdata) {
+    printLogServer("void send_fileServer(FILE *pFile, int socket)");
+
+    FILE *fptrRead;
+    if ((fptrRead = fopen("/home/gorny/temp.txt","r")) == NULL){
+        printf("Error! opening file");
+    } else {
+        char buffer[BUFFER_LENGTH + 1];
+        buffer[BUFFER_LENGTH] = '\0';
+        char *pos = strchr(buffer, '\n');
+        if (pos != NULL) {
+            *pos = '\0';
+        }
+
+
+        char* action = "[FileS]";
+
+        int userNameLength = strlen(pdata->userName);
+        int countCharAfterName = 2 + strlen(action);
+        sprintf(buffer, "%s%s: ", pdata->userName,action);
+        char *textStart = buffer + (userNameLength + countCharAfterName);
+
+        int n = 0;
+        while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), fptrRead) != NULL)  {
+            printf("FILE TO WRITE: %s\n",buffer);
+            usleep(500);
+            if(write(socket, buffer, strlen(buffer) + 1) < 0) {
+                printf("ERRRRRRRRRRR\n");
+            } else {
+                printf("Successfull\n");
+            }
+        }
+    }
+    fclose(fptrRead);
+
+
+    //sleep(6);
+
+
+    printLogServer("OUT OF: void send_fileServer(FILE *pFile, int socket)");
+    pdata->step++;
 }
 
 

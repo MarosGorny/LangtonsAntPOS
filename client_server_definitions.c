@@ -14,7 +14,7 @@
 
 void printData(DATA* pdata) {
     printLogServer("printData(DATA* pdata)");
-    printf( "%s: con:%d col:%d row:%d ants:%d loaTyp%d logTyp%d\n stop:%d step:%d ready:%d \n number of clients:%d\n", pdata->userName\
+    printf( "%s: con:%d col:%d row:%d ants:%d loaTyp%d logTyp%d\n stop:%d step:%d ready:%d down:%d\n number of clients:%d\n", pdata->userName\
                                                         ,pdata->continueSimulation\
                                                         ,pdata->columns\
                                                         ,pdata->rows\
@@ -24,6 +24,7 @@ void printData(DATA* pdata) {
                                                         ,pdata->stop\
                                                         ,pdata->step\
                                                         ,pdata->ready\
+                                                        ,pdata->download\
                                                         ,pdata->numberOfClients);
 }
 

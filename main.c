@@ -209,34 +209,70 @@ void* antSimulation(void* data) {
         printf("FINISHED ANTS %d\n",counterOfFinishedAnts);
         //Prints background
         printBackground((const BOX ***) display.box, rows, columns);
-        //time and filename
-        time_t t = time(NULL);
-        struct tm tm = *localtime(&t);
-        char fileNameString[50];
-        sprintf(fileNameString, "../txtFiles/writedFile_%02dhod_%02dmin.txt", tm.tm_hour, tm.tm_min);
-        printf("Writing to file\n");
-        FILE *fptr;
-        fptr = fopen(fileNameString,"w");
-        if(fptr == NULL) {
-            printf("Error writing\n");
-        } else {
-            fprintf(fptr,"%d\n",rows);
-            fprintf(fptr,"%d\n",columns);
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
-                    //Get tempBox
-                    if (display.box[i][j]->color == WHITE) {
-                        fprintf(fptr,"0");
-                    } else if (display.box[i][j]->color == BLACK) {
-                        fprintf(fptr,"1");
-                    } else {
-                        fprintf(fptr,"X");
-                    };
+
+        printf("111\n");
+
+
+
+        printf("PRED BROADCASTOM 1\n");
+        pdata->step++;
+        printData(pdata);
+
+        pthread_cond_broadcast(&pdata->updateClients);
+        pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
+        printf("33333\n");
+        printf("step %d, down %d\n",pdata->step,pdata->download);
+        //data_init(pdata, NULL);
+        //TODO SPRAVIT po stahovani suboru a tiez broadcast
+
+        printf("444\n");
+        if(pdata->download == 1 || pdata->download == 2) {
+            printf("inside of file\n");
+            //time and filename
+            time_t t = time(NULL);
+            struct tm tm = *localtime(&t);
+            char fileNameString[50];
+            //sprintf(fileNameString, "/home/gorny/writedFile_%02dhod_%02dmin.txt", tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
+            sprintf(fileNameString, "/home/gorny/temp.txt");
+
+            //Writing to file
+            FILE *fptr;
+
+            //fptr = fopen("../txtFiles/writedFile-.txt","w");
+            fptr = fopen(fileNameString,"w");
+
+            if(fptr == NULL) {
+                printf("Error writing\n");
+            } else {
+                fprintf(fptr,"%d\n",rows);
+                fprintf(fptr,"%d\n",columns);
+                for (int i = 0; i < rows; i++) {
+                    for (int j = 0; j < columns; j++) {
+                        //Get tempBox
+                        if (display.box[i][j]->color == WHITE) {
+                            fprintf(fptr,"0");
+                        } else if (display.box[i][j]->color == BLACK) {
+                            fprintf(fptr,"1");
+                        } else {
+                            fprintf(fptr,"X");
+                        };
+                    }
+                    fprintf(fptr,"\n");
                 }
-                fprintf(fptr,"\n");
             }
+            fclose(fptr);
+            printf("FILE WRITED ONTO SERVER\n");
+
         }
-        fclose(fptr);
+
+        printf("555\n");
+        sleep(1);
+        printf("PRED BROADCASTOM 2\n");
+//        printData(pdata);
+//        pthread_cond_broadcast(&pdata->updateClients);
+        printf("66666\n");
+
+
         /// CLEANING AND DELETING
         printf("Cleaning and deleting\n");
         for (int i = 0; i < rows; i++) {
@@ -275,9 +311,9 @@ void* antSimulation(void* data) {
 
         free(dataStop);
         printf("END OF REPEATING SIMULATION \n");
-        data_init(pdata, NULL);
         printData(pdata);
         pthread_cond_broadcast(&pdata->updateClients);
+        pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
     }
     printf("END OF SIMULATION \n");
     return EXIT_SUCCESS;

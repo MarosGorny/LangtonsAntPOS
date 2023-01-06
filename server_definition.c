@@ -87,6 +87,7 @@ void *data_readDataServer(void *data) {
 
     //printf("BEFORE WHILE\n");
     while(!data_isStopped(pdata)) {
+        printf("data_read stop: %d\n",pdata->stop);
         int n = 0;
         //printf("Client:%d INSIDE WHILE\n",idClient);
         bzero(buffer, BUFFER_LENGTH);
@@ -149,6 +150,7 @@ void *data_readDataServer(void *data) {
             if(pdata->step == 5 && n > 1) {
 
             } else {
+                printf("pthread_cond_broadcast(&pdata->updateClients);\n");
                 pthread_cond_broadcast(&pdata->updateClients);
             }
 
@@ -161,12 +163,19 @@ void *data_readDataServer(void *data) {
             data_stop(pdata);
         }
     }
-
+    pthread_cond_signal(&pdata->startAntSimulation);
+    printf("RETURNNNNN data_readDataServer\n");
     return NULL;
 }
 
 
 void makeActionNew(char* buffer, DATA *pdata) {
+    printLogServer("void makeActionNew(char* buffer, DATA *pdata)");
+
+    if(pdata->stop == 1) {
+        printf("READ THREAD SHUTED DOWN\n");
+        return;
+    }
 //    char* posSemi = strchr(buffer, ':');
 //    char* posSemiSecond = strchr(posSemi+1, ':');
     if(!semicolonAction(buffer,pdata)) {
@@ -208,7 +217,14 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 LOGIC_TYPE logicType = (LOGIC_TYPE) atoi(posActionBracketsEnd + 2) - 1;
                 pdata->logicType = logicType;
                 printf("Changed logic type: %d\n", pdata->logicType);
+
+                if(pdata->loadingType == FILE_INPUT_LOCAL) {
+                    pdata->step++;
+                }
+
             } else if (strcmp(target, "[Dimensions]") == 0) {
+
+
                 char *columnsCharPointer = strchr(posActionBracketsEnd + 3, ' ');
                 if (columnsCharPointer) printf("%s\n", columnsCharPointer);
                 if (columnsCharPointer == NULL) {
@@ -232,6 +248,9 @@ void makeActionNew(char* buffer, DATA *pdata) {
 
                     addStep = false;
                 }
+                pdata->step++;
+
+
 
             } else if (strcmp(target, "[SELECTING BLACK BOXES]") == 0) {
                 printf("Dosal sa dnu\n");
@@ -246,6 +265,8 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     printf("added black box to position X: %d Y: %d\n", y, x);
                     addStep = false;
                 }
+                pdata->step++;
+
 
             } else if (strcmp(target,"[FileL]") == 0) {
 //                if(pdata->step == 5) {
@@ -325,6 +346,7 @@ bool semicolonAction(char* buffer, DATA *pdata) {
             if(strcmp(posSemiSecond,endMsg) == 0) {
                 userSemiAction = "ukoncil komunikaciu";
                 data_stop(pdata);
+                shutdown(pdata->sockets[0],2);
                 //TODO SPRAVIT ABY vyplo celu simulaciu
             } else if (strcmp(posSemiSecond,pauseMsg) == 0) {
                 userSemiAction = "pauzol simulaciu";
@@ -381,7 +403,21 @@ void data_destroyServer(DATA *data) {
 void data_init(DATA *data, const char* userName) {
     printLogServer("void data_init(DATA *data, const char* userName, const int socket)");
     data->userName[USER_LENGTH] = '\0';
-    strncpy(data->userName, userName, USER_LENGTH);
+    if(userName != NULL) {
+        strncpy(data->userName, userName, USER_LENGTH);
+        data->continueSimulation = 1;
+        data->numberOfClients = 1;
+
+        //mutexes init
+        pthread_mutex_init(&data->mutex, NULL);
+        pthread_mutex_init(&data->writtenMutex, NULL);
+
+        //conds init
+        pthread_cond_init(&data->startAntSimulation, NULL);
+        pthread_cond_init(&data->continueAntSimulation, NULL);
+        pthread_cond_init(&data->updateClients, NULL);
+    }
+
 
     //Simulation data
     data->numberOfAnts = 0;
@@ -392,20 +428,12 @@ void data_init(DATA *data, const char* userName) {
 
     //Communication data
     data->stop = 0;
-    data->continueSimulation = 1;
-    //data->written = 0;
-    data->numberOfClients = 1;
+
+
     data->step = 1;
     data->ready = 0;
 
-    //mutexes init
-    pthread_mutex_init(&data->mutex, NULL);
-    pthread_mutex_init(&data->writtenMutex, NULL);
 
-    //conds init
-    pthread_cond_init(&data->startAntSimulation, NULL);
-    pthread_cond_init(&data->continueAntSimulation, NULL);
-    pthread_cond_init(&data->updateClients, NULL);
 }
 
 void write_file(int socket) {

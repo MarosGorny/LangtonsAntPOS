@@ -65,6 +65,7 @@ void *data_writeDataClient(void *data) {
 
 
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
+    printf("RETURNNNN data_writeDataClient\n");
     return NULL;
 }
 
@@ -188,6 +189,7 @@ void initSimulationSetting(DATA* pdata) {
     printf("STEP %d\n",pdata->step);
 
     while(!data_isStopped(pdata)) {
+        printf("DATA IS STOPPED?:%d\n",pdata->stop);
         //if(pdata->numberOfAnts <= 0) {
         pthread_mutex_lock(&pdata->mutex);
         int step = pdata->step;
@@ -363,6 +365,7 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
 
                     printf("End of communication.\n");
                     data_stop(pdata);
+                    goto exit;
                     //TODO SPRAVIT QUIT A END PORIADNE
                 } else {
                     printf("BUFFER TO WRITE: %s  (writeToSocketByAction)\n",buffer);

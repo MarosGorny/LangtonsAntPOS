@@ -74,6 +74,10 @@ void* antSimulation(void* data) {
         pthread_mutex_lock(&pdata->mutex);
         printLog("Before: pthread_cond_wait(&pdata->startAntSimulation,&pdata->mutex)");
         pthread_cond_wait(&pdata->startAntSimulation, &pdata->mutex);
+        if(pdata->stop == 1) {
+            printf("GAME THREAD SHUTED DOWN\n");
+            break;
+        }
         printLog("After: pthread_cond_wait(&pdata->startAntSimulation,&pdata->mutex)");
         rows = pdata->rows;
         columns = pdata->columns;
@@ -267,9 +271,15 @@ void* antSimulation(void* data) {
         if (*dataStop == 1) {
             repeat = false;
         }
+
+
         free(dataStop);
-        printf("END \n");
+        printf("END OF REPEATING SIMULATION \n");
+        data_init(pdata, NULL);
+        printData(pdata);
+        pthread_cond_broadcast(&pdata->updateClients);
     }
+    printf("END OF SIMULATION \n");
     return EXIT_SUCCESS;
 }
 
@@ -344,9 +354,12 @@ int main(int argc,char* argv[]) {
         int numberOfClients = data.numberOfClients;
         pthread_mutex_unlock(&data.mutex);
 
+        printf("Pred acceptom\n");
         if ((clientSocket = accept(serverSocket, (SA *) &client_addr, (socklen_t *) &addr_size)) < 0) {
-            printError("Error - accept");
+            break;
+            //printError("Error - accept");
         } else {
+            printf("Po acceptom\n");
             //akcepnuty socket
             pthread_mutex_lock(&data.mutex);
             data.sockets[numberOfClients] = clientSocket;
@@ -370,18 +383,24 @@ int main(int argc,char* argv[]) {
 
     //pockame na skoncenie zapisovacieho vlakna <pthread.h> a vlakna na simulacia mravcov
     pthread_join(gameThread, NULL);
+    printf("PTHREAD JOIN: gameThread\n");
 
     for (int i = 0; i < SERVER_BACKLOG; i++) {
-        pthread_join(threadWrite[i], NULL);
-    }
-    for (int i = 0; i < SERVER_BACKLOG; i++) {
+        printf("PTHREAD JOIN: threadRead[%d]\n",i);
         pthread_join(threadRead[i], NULL);
     }
+
+    for (int i = 0; i < SERVER_BACKLOG; i++) {
+        printf("PTHREAD JOIN: threadWrite[%d]\n",i);
+        pthread_join(threadWrite[i], NULL);
+    }
+
 
 
     for (int i = 0; i < SERVER_BACKLOG; i++) {
         //uzatvorenie pasivneho socketu sockets[0]
         //uzavretie socketu klienta sockets[1+]
+        printf("CLOSE: data.sockets[%d]\n",i);
         close(data.sockets[i]);
     }
 

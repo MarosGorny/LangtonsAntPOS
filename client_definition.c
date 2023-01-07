@@ -132,7 +132,7 @@ void *data_readDataClient(void *data) {
 
 void readMakeAction(char* buffer, DATA *pdata) {
     printLog("CLIENT: void readMakeAction(char* buffer, DATA *pdata)");
-    printf("STEP: %d\n",pdata->step);
+    printf("STEP ON READMAKEACTION START: %d\n",pdata->step);
     printf("BUFFER:%s\n",buffer);
     char *target = NULL;
     char *posActionBracketsStart = strchr(buffer, '[');
@@ -156,12 +156,13 @@ void readMakeAction(char* buffer, DATA *pdata) {
         if(fptr == NULL) {
             printf("Error writing\n");
         } else {
-            printf("writed:%s\n",posActionBracketsEnd+2);
+            printf("writed:%s\n",posActionBracketsEnd+3);
             printf("%s\n",posActionBracketsEnd+3);
             if(strcmp(posActionBracketsEnd+3,"END") == 0) {
-                //fprintf(fptr,"%s", posActionBracketsEnd + 2);
+                pdata->step++;
+                pthread_cond_signal(&pdata->continueAntSimulation);
             } else {
-                fprintf(fptr,"%s", posActionBracketsEnd + 2);
+                fprintf(fptr,"%s", posActionBracketsEnd + 3);
             }
 
         }
@@ -216,6 +217,7 @@ void readMakeAction(char* buffer, DATA *pdata) {
 
         free( target );
     }
+    printf("STEP ON READMAKEACTION END: %d\n",pdata->step);
 
     //if ( target ) printf( "%s\n", target );
 }
@@ -256,7 +258,12 @@ void initSimulationSetting(DATA* pdata) {
                 break;
             case 8:
                 writeToSocketByAction(pdata,DOWNLOAD_ACTION);
-            default:
+                break;
+            case 9:
+                usleep(200);
+            case 10:
+                writeToSocketByAction(pdata,END_ACTION);
+                default:
                 break;
         }
 
@@ -314,6 +321,10 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
         printf("1: Server.\n");
         printf("2: My computer.\n");
         printf("3: Nowhere.\n");
+    } else if (step == 10) {
+        printf("\nPlease, select action? [write number and press enter]\n");
+        printf("1: Start new simulation.\n");
+        printf("2: End simulation.\n");
     }
 
     //return "";
@@ -338,6 +349,8 @@ char* getActionStringInBracket(ACTION_CODE actionCode) {
             return "";
         case DOWNLOAD_ACTION:
             return "[DOWNLOAD]";
+        case END_ACTION:
+            return "[END]";
         default:
             return "";
     }
@@ -598,6 +611,13 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata, ACTION_CODE actionCode, char
             write(pdata->sockets[0], buffer, strlen(buffer) + 1);
             return true;
         }
+    } else if (actionCode == END_ACTION) {
+        int temp = atoi(textStart);
+        if(temp == 1 || temp == 2) {
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+            return true;
+        }
+
     } else {
         write(pdata->sockets[0], buffer, strlen(buffer) + 1);
         printLog("INSIDE ELSE WRITE TO SOCKET - CLIENT");

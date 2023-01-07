@@ -61,7 +61,7 @@ void* antSimulation(void* data) {
     printLog("void* antSimulation(void* data)");
 
     while (repeat) {
-
+        printLog("while (repeat)");
         DATA *pdata = (DATA *)data;
 
         int rows;
@@ -87,6 +87,17 @@ void* antSimulation(void* data) {
         pthread_mutex_unlock(&pdata->mutex);
 
         if(loadingType == FILE_INPUT_LOCAL) {
+            //tu sa najprv vytvori na temp.txt
+            int temp;
+            fptrRead = fopen("/home/gorny/temp.txt","r");
+            fscanf(fptrRead,"%d", &temp);
+            rows = temp;
+            fscanf(fptrRead,"%d", &temp);
+            columns = temp;
+        }
+
+        if(loadingType == FILE_INPUT_SERVER) {
+            //TODO spravit aby to fungovalo na meno
             int temp;
             fptrRead = fopen("/home/gorny/temp.txt","r");
             fscanf(fptrRead,"%d", &temp);
@@ -147,6 +158,9 @@ void* antSimulation(void* data) {
                         initBoxRandom(boxData,chanceOfBlackBox);
                         break;
                     case FILE_INPUT_LOCAL:
+                        initBoxFile(boxData,fptrRead);
+                        break;
+                    case FILE_INPUT_SERVER:
                         initBoxFile(boxData,fptrRead);
                         break;
                     default:
@@ -210,23 +224,7 @@ void* antSimulation(void* data) {
         //Prints background
         printBackground((const BOX ***) display.box, rows, columns);
 
-        printf("111\n");
-
-
-
-        printf("PRED BROADCASTOM 1\n");
-        pdata->step++;
-        printData(pdata);
-
-        pthread_cond_broadcast(&pdata->updateClients);
-        pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
-        printf("33333\n");
-        printf("step %d, down %d\n",pdata->step,pdata->download);
-        //data_init(pdata, NULL);
-        //TODO SPRAVIT po stahovani suboru a tiez broadcast
-
-        printf("444\n");
-        if(pdata->download == 1 || pdata->download == 2) {
+        if(true) {
             printf("inside of file\n");
             //time and filename
             time_t t = time(NULL);
@@ -262,12 +260,35 @@ void* antSimulation(void* data) {
             }
             fclose(fptr);
             printf("FILE WRITED ONTO SERVER\n");
-
+            //sleep(2);
+            //pthread_cond_broadcast(&pdata->updateClients);
         }
 
-        printf("555\n");
-        sleep(1);
-        printf("PRED BROADCASTOM 2\n");
+        printf("111\n");
+
+
+
+        printf("PRED BROADCASTOM 1\n");
+        pdata->step++;
+        printData(pdata);
+
+        if(pdata->stop != 1) {
+            pthread_cond_broadcast(&pdata->updateClients);
+            pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
+        }
+
+
+        printf("33333\n");
+        printf("step %d, down %d\n",pdata->step,pdata->download);
+        //data_init(pdata, NULL);
+        //TODO SPRAVIT po stahovani suboru a tiez broadcast
+
+        printf("444\n");
+
+
+        //printf("555\n");
+        //sleep(1);
+        //printf("PRED BROADCASTOM 2\n");
 //        printData(pdata);
 //        pthread_cond_broadcast(&pdata->updateClients);
         printf("66666\n");
@@ -313,7 +334,13 @@ void* antSimulation(void* data) {
         printf("END OF REPEATING SIMULATION \n");
         printData(pdata);
         pthread_cond_broadcast(&pdata->updateClients);
-        pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
+        pthread_mutex_unlock(&pdata->mutex);
+        printf("END OF REPEATING SIMULATION \n");
+        if(pdata->stop == 1) {
+            printf("break\n");
+            break;
+        }
+        //pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
     }
     printf("END OF SIMULATION \n");
     return EXIT_SUCCESS;

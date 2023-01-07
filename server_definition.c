@@ -62,6 +62,11 @@ void *data_writeDataServer(void *data) {
         pthread_mutex_lock(&pdata->mutex);
         printf("WRITE CAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA na WAIT\n");
         pthread_cond_wait(&pdata->updateClients,&pdata->mutex);
+        printf("WRITE ZA WAAAAAAAAAAAAAAAAITOM\n");
+        if(pdata->stop ==1) {
+            pthread_mutex_unlock(&pdata->mutex);
+            break;
+        }
 
 
         printf("STEP IN WRITEDATA:%d %d\n",pdata->step,pdata->download);
@@ -81,6 +86,7 @@ void *data_writeDataServer(void *data) {
     //writeMsgToAllParticipants(pdata);
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 
+    printf("RETURNNNNN data_writeDataServer\n");
     return NULL;
 }
 
@@ -164,7 +170,9 @@ void *data_readDataServer(void *data) {
 
             } else {
                 printf("pthread_cond_broadcast(&pdata->updateClients);\n");
+                pthread_mutex_lock(&pdata->mutex);
                 pthread_cond_broadcast(&pdata->updateClients);
+                pthread_mutex_unlock(&pdata->mutex);
             }
 
 
@@ -349,6 +357,30 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     //TODO NOTHING
                 }
 
+            } else if (strcmp(target,"[END]") == 0) {
+                printf("DOSTAL SA DO ENDU\n");
+                int temp = atoi(posActionBracketsEnd + 2);
+
+                if(temp == 1) {   // server
+                    printf("DOSTAL SA DO ENDU1\n");
+                    data_init(pdata,NULL);
+                    addStep = false;
+                } else if (temp == 2) { //local
+                    printf("DOSTAL SA DO ENDU2\n");
+                    pthread_mutex_unlock(&pdata->mutex);
+                    data_stop(pdata);
+                    printf("DOSTAL SA PRED SIGNAL\n");
+                    pthread_cond_broadcast(&pdata->startAntSimulation);
+                    pthread_cond_broadcast(&pdata->updateClients);
+                    printf("DOSTAL SA ZA SIGNAL\n");
+
+                    pthread_mutex_lock(&pdata->mutex);
+                    shutdown(pdata->sockets[0],2);
+                    printf("shutdown sockets[0]\n");
+                    shutdown(pdata->sockets[1],2);
+                    printf("shutdown sockets[1]\n");
+                }
+
             }
             //Add step
             if (addStep) pdata->step++;
@@ -515,8 +547,33 @@ void send_fileServer(int socket,DATA* pdata) {
                 printf("Successfull\n");
             }
         }
+        bzero(buffer, BUFFER_LENGTH);
+        buffer[BUFFER_LENGTH] = '\0';
+        pos = strchr(buffer, '\n');
+        if (pos != NULL) {
+            *pos = '\0';
+        }
+
+        action = "[FileS]";
+
+        userNameLength = strlen(pdata->userName);
+        countCharAfterName = 2 + strlen(action);
+        sprintf(buffer, "%s%s: END", pdata->userName,action);
+        textStart = buffer + (userNameLength + countCharAfterName);
+
+        printf("poslanu buffffiiiiiik:%s\n",buffer);
+        usleep(500);
+        if(write(socket, buffer, strlen(buffer) + 1) < 0) {
+            printf("ERROR POSLAT END\n");
+        } else {
+            printf("POSLANYYYYYY END\n");
+        }
+
     }
     fclose(fptrRead);
+
+
+
 
 
     //sleep(6);

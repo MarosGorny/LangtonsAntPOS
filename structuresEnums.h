@@ -99,6 +99,7 @@ typedef enum actionCode {
     READY_ACTION = 6,
     WAITING_ACTION = 7,
     DOWNLOAD_ACTION = 8,
+    END_ACTION = 10,
 }ACTION_CODE;
 
 typedef struct display{

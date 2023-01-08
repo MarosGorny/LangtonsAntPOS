@@ -71,7 +71,7 @@ void printError(char *str) {
     else {
         fprintf(stderr, "%s\n", str);
     }
-    exit(EXIT_FAILURE);
+    //exit(EXIT_FAILURE);
 }
 
 void data_stop(DATA *data) {
@@ -93,32 +93,35 @@ int data_isStopped(DATA *data) {
 
 char* getPWD() {
 
-            struct passwd pwd;
-            struct passwd *result;
-            char *buf;
-            size_t bufsize;
-            int s;
-            bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-            if (bufsize == -1)
-                bufsize = 0x4000; // = all zeroes with the 14th bit set (1 << 14)
-            buf = malloc(bufsize);
-            if (buf == NULL) {
-                perror("malloc");
-                exit(EXIT_FAILURE);
-            }
-            s = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
-            if (result == NULL) {
-                if (s == 0)
-                    printf("Not found\n");
-                else {
-                    errno = s;
-                    perror("getpwnam_r");
-                }
-                exit(EXIT_FAILURE);
-            }
-            char *homedir = result->pw_dir;
-            return homedir;
-            printf("HOMEDIR %s\n",homedir);
+    struct passwd pwd;
+    struct passwd *result;
+    char *buf;
+    size_t bufsize;
+    int s;
+    bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufsize == -1)
+        bufsize = 0x4000; // = all zeroes with the 14th bit set (1 << 14)
+    buf = malloc(bufsize);
+    if (buf == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+    s = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
+    free(buf);
+    if (result == NULL) {
+        if (s == 0)
+            printf("Not found\n");
+        else {
+            errno = s;
+            perror("getpwnam_r");
+        }
+        exit(EXIT_FAILURE);
+    }
+    char *homedir = result->pw_dir;
+
+    return homedir;
+
+    printf("HOMEDIR %s\n",homedir);
 }
 
 

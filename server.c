@@ -87,6 +87,7 @@ void* antSimulation(void* data) {
         pthread_cond_wait(&pdata->startAntSimulation, &pdata->mutex);
         if(pdata->stop == 1) {
             printf("GAME THREAD SHUTED DOWN\n");
+            pthread_cond_broadcast(&pdata->updateClients);
             break;
         }
         printLog("After: pthread_cond_wait(&pdata->startAntSimulation,&pdata->mutex)");
@@ -382,7 +383,7 @@ void* antSimulation(void* data) {
         free(dataStop);
         printf("END OF REPEATING SIMULATION \n");
         printData(pdata);
-        pthread_cond_broadcast(&pdata->updateClients);
+        //pthread_cond_broadcast(&pdata->updateClients);
         pthread_mutex_unlock(&pdata->mutex);
         printf("END OF REPEATING SIMULATION \n");
         if(pdata->stop == 1) {
@@ -482,11 +483,13 @@ int main(int argc,char* argv[]) {
     //vytvorenie vlakna  na citanie dat zo socketu
     pthread_t threadRead[SERVER_BACKLOG];
 
+
+    int numberOfConnections = 0;
     //v hlavnom vlakne sa budu prijimat novi clienti
     while (true) {
         printLogServer("MAIN: while (true)",2);
         pthread_mutex_lock(&data.mutex);
-        int numberOfConnections = data.numberOfConnections;
+        numberOfConnections = data.numberOfConnections;
         pthread_mutex_unlock(&data.mutex);
 
         //printf("Pred acceptom\n");
@@ -537,7 +540,7 @@ int main(int argc,char* argv[]) {
 
 
 
-    for (int i = 0; i < SERVER_BACKLOG; i++) {
+    for (int i = 0; i < SERVER_BACKLOG+1; i++) {
         //uzatvorenie pasivneho socketu sockets[0]
         //uzavretie socketu klienta sockets[1+]
         printf("CLOSE: data.sockets[%d]\n",i);

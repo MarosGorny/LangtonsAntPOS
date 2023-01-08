@@ -21,6 +21,7 @@ void data_initServer(DATA *data, const char* userName);
 
 void write_file(int socket);
 void send_fileServer(int socket,DATA* pdata);
+void closeAllSockets(DATA* pdata);
 
 
 

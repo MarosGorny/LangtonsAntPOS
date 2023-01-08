@@ -142,11 +142,12 @@ void *data_readDataClient(void *data) {
 
             processReadData(buffer, pdata);
 
-            pthread_mutex_lock(&pdata->mutex);
+
             //printf("data_readData: INCREMENTIG STEP\n");
             printf("STEP: %d\n",pdata->step);
+
             printActionQuestionByStep(pdata->step,pdata);
-            pthread_mutex_unlock(&pdata->mutex);
+
         }
         else {
             printf("ELSE STOP\n");
@@ -161,9 +162,9 @@ void *data_readDataClient(void *data) {
 void processReadData(char* buffer, DATA *pdata) {
     printLogServer("void processReadData(char* buffer, DATA *pdata)",1);
 
-    pthread_mutex_lock(&pdata->mutex);
+    printf("DEADLOCK? %d\n",pthread_mutex_lock(&pdata->mutex));
     int step = pdata->step;
-    pthread_mutex_unlock(&pdata->mutex);
+    printf("DEADLOCK? %d\n",pthread_mutex_unlock(&pdata->mutex));
 
     printf("STEP ON READMAKEACTION START: %d\n",step);
 
@@ -206,6 +207,7 @@ void processReadData(char* buffer, DATA *pdata) {
 
             printf("Bracket Action: %s\n", target);
 
+
             FILE *fptr;
             //fptr = fopen("../txtFiles/writedFile-.txt","w");
 
@@ -218,8 +220,11 @@ void processReadData(char* buffer, DATA *pdata) {
                 printf("writed:%s\n",posActionBracketsEnd+3);
                 printf("%s\n",posActionBracketsEnd+3);
                 if(strcmp(posActionBracketsEnd+3,"END") == 0) {
+                    pthread_mutex_lock(&pdata->mutex);
                     pdata->step++;
+                    pthread_mutex_unlock(&pdata->mutex);
                     pthread_cond_signal(&pdata->continueAntSimulation);
+
                 } else {
                     fprintf(fptr,"%s", posActionBracketsEnd + 3);
                 }
@@ -228,6 +233,7 @@ void processReadData(char* buffer, DATA *pdata) {
             printf("CLOSING FILE\n");
             fclose(fptr);
             printf("CLOSED FILE\n");
+
             free( target );
         }
 
@@ -330,7 +336,7 @@ void startSendingDataToServer(DATA* pdata) {
                 writeToSocketByAction(pdata,DOWNLOAD_ACTION);
                 break;
             case 9:
-                usleep(200);
+                sleep(1);
                 break;
             case 10:
                 writeToSocketByAction(pdata,END_ACTION);
@@ -371,15 +377,19 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
         //return "[Logic type]";
     } else if (step == 4) {
 
+        pthread_mutex_lock(&pdata->mutex);
+
         if(pdata->rows <= 0) {
             printf("\nSelect dimensions of ground, [write rows and columns, divided by space]\n");
         } else {
             printf("\nSelect black boxes, [write X and Y, divided by space]\n");
             printf("\tWrite \"OK\" to continue\n");
         }
+        pthread_mutex_unlock(&pdata->mutex);
 
         //return "[Dimensions]";
     } else if (step == 5) {
+        pthread_mutex_lock(&pdata->mutex);
         if(strcmp(pdata->txtFileName,"NULL") == 0) {
 
             if(pdata->loadingType == FILE_INPUT_LOCAL) {
@@ -392,6 +402,7 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
         } else {
             printf("\nFile %s was loaded\n",pdata->txtFileName);
         }
+        pthread_mutex_unlock(&pdata->mutex);
 
     } else if (step == 6) {
         printf("\nAre you ready to start? [write 1 for yes and press enter]\n");
@@ -736,6 +747,9 @@ bool writeToServer(DATA* pdata, ACTION_CODE actionCode, char* buffer, char* text
         int temp = atoi(textStart);
         if(temp == 1 || temp == 2) {
             write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+            if(temp == 2) {
+                data_stop(pdata);
+            }
             return true;
         }
 

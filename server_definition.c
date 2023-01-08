@@ -104,6 +104,9 @@ void *data_writeDataServer(void *data) {
                 char oldName[50];
                 sprintf(oldName,"%s/temp.txt",getPWD());
                 remove(oldName);
+            } else {
+                pdata->step++;
+                writeToSocketActualData(pdata, pdata->sockets[idClient]);
             }
 
 
@@ -253,6 +256,7 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 pdata->rows = atoi(posActionBracketsEnd + 2);
                 printf("Changed rows: %d columns: %d\n", pdata->rows, pdata->columns);
 
+
                 if(pdata->loadingType == TERMINAL_INPUT) {
                     // init colorOfDisplay
                     printf("ALLOCATION 1\n");
@@ -265,8 +269,10 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     }
 
                     addStep = false;
+                } else {
+                    pdata->step++;
                 }
-                pdata->step++;
+
 
 
 
@@ -282,8 +288,10 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     pdata->colorOfDisplay[x][y] = 1;
                     printf("added black box to position X: %d Y: %d\n", y, x);
                     addStep = false;
+                } else {
+                    pdata->step++;
                 }
-                pdata->step++;
+
 
 
             } else if (strcmp(target,"[FILENAME]") == 0)  {
@@ -367,7 +375,6 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     printf("ANTS ARE NOT READY\n");
                 }
             } else if (strcmp(target,"[DOWNLOAD]") == 0) {
-                //TODO SPRAVIT STAHOVANIE SUBORU
                 int temp = atoi(posActionBracketsEnd + 2);
                 pdata->download = temp;
                 printf("Download changed to: %d\n", pdata->download);
@@ -377,7 +384,9 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 } else if (temp == 2) { //local
                     pthread_cond_signal(&pdata->continueAntSimulation);
                 } else if (temp == 3) { // nowhere
-                    //TODO NOTHING
+//                    writeToSocketActualData(pdata, pdata->sockets[idClient]);
+                    pthread_cond_signal(&pdata->continueAntSimulation);
+
                 }
 
             } else if (strcmp(target,"[END]") == 0) {
@@ -391,17 +400,19 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 } else if (temp == 2) { //local
                     printf("DOSTAL SA DO ENDU2\n");
                     pthread_mutex_unlock(&pdata->mutex);
-                    data_stop(pdata);
-                    printf("DOSTAL SA PRED SIGNAL\n");
-                    pthread_cond_broadcast(&pdata->startAntSimulation);
-                    pthread_cond_broadcast(&pdata->updateClients);
-                    printf("DOSTAL SA ZA SIGNAL\n");
+//                    data_stop(pdata);
 
-                    pthread_mutex_lock(&pdata->mutex);
+                    data_stop(pdata);
                     shutdown(pdata->sockets[0],2);
+//                    printf("DOSTAL SA PRED SIGNAL\n");
+//                    pthread_cond_broadcast(&pdata->startAntSimulation);
+//                    pthread_cond_broadcast(&pdata->updateClients);
+//                    printf("DOSTAL SA ZA SIGNAL\n");
+//
+//                    pthread_mutex_lock(&pdata->mutex);
+//                    shutdown(pdata->sockets[0],2);
                     printf("shutdown sockets[0]\n");
-                    shutdown(pdata->sockets[1],2);
-                    printf("shutdown sockets[1]\n");
+
                 }
 
             }
@@ -575,7 +586,7 @@ void send_fileServer(int socket,DATA* pdata) {
         int n = 0;
         while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), fptrRead) != NULL)  {
             printf("FILE TO WRITE: %s\n",buffer);
-            usleep(500);
+            usleep(300);
             if(write(socket, buffer, strlen(buffer) + 1) < 0) {
                 printf("ERRRRRRRRRRR\n");
             } else {
@@ -597,7 +608,7 @@ void send_fileServer(int socket,DATA* pdata) {
         textStart = buffer + (userNameLength + countCharAfterName);
 
         printf("poslanu buffffiiiiiik:%s\n",buffer);
-        usleep(500);
+        usleep(1000);
         if(write(socket, buffer, strlen(buffer) + 1) < 0) {
             printf("ERROR POSLAT END\n");
         } else {
@@ -607,9 +618,23 @@ void send_fileServer(int socket,DATA* pdata) {
     }
     fclose(fptrRead);
 
+//    pthread_mutex_lock(&pdata->mutex);
+//    pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
 
     pdata->step++;
+//    pthread_mutex_unlock(&pdata->mutex);
     printLogServer("OUT OF: void send_fileServer(FILE *pFile, int socket)",0);
+}
+
+
+void closeAllSockets(DATA* pdata) {
+    for (int i = 0; i < SERVER_BACKLOG+1; i++) {
+        //uzatvorenie pasivneho socketu sockets[0]
+        //uzavretie socketu klienta sockets[1+]
+        printf("CLOSE: data.sockets[%d]\n",i);
+        close(pdata->sockets[i]);
+    }
+
 }
 
 

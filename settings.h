@@ -25,5 +25,7 @@ void initBoxTerminalInput(DISPLAY* display);
 void chooseAntsPosition(int rows,int columns, ANT* antData);
 bool checkIfReady(char* buffer,void *data);
 
+void shuffle(int *array, size_t n);
+
 
 #endif //LANGTONSANTPOS_SETTINGS_H

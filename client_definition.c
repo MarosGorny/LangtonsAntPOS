@@ -381,9 +381,12 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
         //return "[Dimensions]";
     } else if (step == 5) {
         if(strcmp(pdata->txtFileName,"NULL") == 0) {
+
             if(pdata->loadingType == FILE_INPUT_LOCAL) {
+                printf("File must be in: %s",getPWD());
                 printf("\nWrite name of the file on your computer\n");
             } else if (pdata->loadingType == FILE_INPUT_SERVER){
+                printf("File must be in: %s",getPWD());
                 printf("\nWrite name of the file on server\n");
             }
         } else {
@@ -719,7 +722,9 @@ bool writeToServer(DATA* pdata, ACTION_CODE actionCode, char* buffer, char* text
             return true;
         }
     } else if (actionCode == WAITING_ACTION) {
+        write(pdata->sockets[0], buffer, strlen(buffer) + 1);
         printLog("INSIDE WAITING ACTION - CLIENT");
+        return true;
     } else if (actionCode == DOWNLOAD_ACTION) {
         printLog("INSIDE DOWNLOAD ACTION - CLIENT");
         int temp = atoi(textStart);

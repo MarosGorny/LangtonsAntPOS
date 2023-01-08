@@ -171,12 +171,13 @@ void* antF(void* arg) {
         pthread_barrier_wait(originalBarrier);
         printf("\n");
 
-        printf("pred waitom %d\n",pthread_mutex_lock(antsDisplay->mut));
+        pthread_mutex_lock(antsDisplay->mut);
 
         if(antsDisplay->dataSocket->continueSimulation == 0) {
+            printf("PAUSEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE INSIDE\n");
             pthread_cond_wait(&antsDisplay->dataSocket->continueAntSimulation, antsDisplay->mut);
         }
-        printf("po waitom %d\n", pthread_mutex_unlock(antsDisplay->mut));
+        pthread_mutex_unlock(antsDisplay->mut);
 
         if(antsDisplay->dataSocket->stop == 1) {
             //TODO SPRAVIT TO NA COND WAIT a mozem to aj pauzovat (pouzit aj broadcast)

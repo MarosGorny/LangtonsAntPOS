@@ -209,14 +209,46 @@ void* antSimulation(void* data) {
         //Prints background
         printBackground((const BOX ***) display.box, rows, columns);
 
+        srand(time(NULL));
+//        int array[5][5] = {{0}};
+//
+//        int r = 3, c = 4, i, j, count;
+
+        int tempArr[rows*columns];
+
+        for (int i = 0; i < rows*columns; i++)
+                tempArr[i] = i;
+
+        printf("FIRST\n");
+        for (int i = 0; i < rows*columns; i++) {
+
+            printf("%d ",tempArr[i]);
+        }
+
+        shuffle(tempArr,rows*columns);
+
+        printf("SECOND\n");
+        for (int i = 0; i < rows*columns; i++) {
+            printf("%d ",tempArr[i]);
+        }
+
         //TODO PUTING ANTS TO DISPLAY
         for (int i = 0; i < numberOfAnts; i++) {
             antsD[i].id = i+1;
-            chooseAntsPosition(rows,columns,&antsD[i]);
+            int position = tempArr[i];
+            int x = position % columns;
+            int y = position / columns;
+
+            antsD[i].y = y;
+            antsD[i].x = x;
+            antsD[i].direction = NORTH;
+
+            //chooseAntsPosition(rows,columns,&antsD[i]);
             antsD[i].display = &display;
             pthread_create(&ants[i],NULL,antF,&antsD[i]);
-            printf("Created ant[%d]\n",i+1);
+            printf("Created ant[%d] X:%d Y:%d\n",i+1,antsD[i].x,antsD[i].y);
         }
+
 
         void *counter = 0;
         int counterOfFinishedAnts = 0;

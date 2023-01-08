@@ -68,6 +68,8 @@ typedef struct data {
 
     char txtFileName[100];
 
+    int typeOfCollision;
+
     pthread_mutex_t mutex;
     pthread_mutex_t writtenMutex;
 

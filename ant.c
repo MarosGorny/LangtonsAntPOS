@@ -224,6 +224,8 @@ const char* getDircetionString(ANT_DIRECTION antDirection) {
             return "SOUTH";
         case WEST:
             return "WEST";
+        case COLL_DIRECTION:
+            return "ONLY TO SOUTH";
         default:
             return "DIRECTION_NOT_SET_ERR";
     }

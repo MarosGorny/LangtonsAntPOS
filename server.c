@@ -79,6 +79,7 @@ void* antSimulation(void* data) {
         LOADING_TYPE loadingType;
         char* textFileName;
         char fullPath[100];
+        int typeOfCollision;
 
 
         pthread_mutex_lock(&pdata->mutex);
@@ -95,6 +96,7 @@ void* antSimulation(void* data) {
         logicType = pdata->logicType;
         loadingType = pdata->loadingType;
         textFileName = pdata->txtFileName;
+        typeOfCollision = pdata->typeOfCollision;
         pthread_mutex_unlock(&pdata->mutex);
 
         if(loadingType == FILE_INPUT_LOCAL) {
@@ -134,7 +136,7 @@ void* antSimulation(void* data) {
         }
         printf("Barrier\n");
         //Creating display
-        DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType, NULL,pdata,ONLY_FIRST_ALIVE_COLL};
+        DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType, NULL,pdata,typeOfCollision};
         //Creating 2D dynamic array of boxes , pointer of pointers
         display.box = malloc(rows*sizeof (BOX**));
         //Creating mutexes
@@ -365,14 +367,15 @@ int main(int argc,char* argv[]) {
 
     ////SERVER
     printLogServer("int main(int argc,char* argv[])",1);
-    if (argc < 3) {
-        printError("Sever have to be launched with following arguments: port username.");
+    if (argc < 4) {
+        printError("Sever have to be launched with following arguments: port username typeOfCollision.");
     }
     int port = atoi(argv[1]);
     if (port <= 0) {
         printError("Port have to be integer greater than 0.");
     }
     char *userName = argv[2];
+    COLLISION typeOfCollision = atoi(argv[3]);
 
     int serverSocket, clientSocket, addr_size;
     SA_IN server_addr, client_addr;
@@ -400,12 +403,31 @@ int main(int argc,char* argv[]) {
 
     printf("Waiting for connections..\n");
 
+    if(typeOfCollision <= 0 || typeOfCollision > 3) {
+        typeOfCollision = 1;
+    }
+
+    switch (typeOfCollision) {
+        case 1:
+            printf("Collision of ants: Only one ant will survive.\n");
+            break;
+        case 2:
+            printf("Collision of ants: All ants will die on collision.\n");
+            break;
+        case 3:
+            printf("Collision of ants: After hard hit on collision, half of ants will continue only to south.\n");
+            break;
+        default:
+            printf("No collision is set.\n");
+    }
+
     //wait for, and eventually accept an incoming connection
     addr_size = sizeof(SA_IN);
 
 
     //inicializacia dat zdielanych medzi vlaknami
     DATA data;
+    data.typeOfCollision = typeOfCollision;
     data_initServer(&data, userName);
 
 

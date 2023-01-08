@@ -32,23 +32,31 @@
 //    int* addr_size = pdata->acceptDataForServer->addr_size;
 //
 //    while(true) {
-//        int numberOfClients = pdata->numberOfClients;
+//        int numberOfConnections = pdata->numberOfConnections;
 //
 //        if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
 //            printError("Error - accept");
 //        } else {
-//            pdata->sockets[numberOfClients] = clientSocket;
-//            pdata->numberOfClients++;
-//            printf("Client[%d] connected!\n",numberOfClients);
+//            pdata->sockets[numberOfConnections] = clientSocket;
+//            pdata->numberOfConnections++;
+//            printf("Client[%d] connected!\n",numberOfConnections);
 //        }
 //        pthread_mutex_lock(&pdata->mutex);
-//        if(pdata->numberOfClients > 0) {
+//        if(pdata->numberOfConnections > 0) {
 //            pthread_cond_signal(pdata->condStartListeningArray);
 //        }
 //        pthread_mutex_unlock(&pdata->mutex);
 //    }
 //}
 
+
+/**
+* Hlavne vlakno pre simulaciu. Zbieraju sa tu zadane nastavenia a inicializuje sa cela simulacia.
+* V tomto vlakne sa tiez inicializuju vlakna pre kazdeho mravca a nasledne sa spusta simulacia.
+*
+* @param  data void pointer na DATA*
+* @return void void pointer
+*/
 void* antSimulation(void* data) {
     // split into frames from wiki
     // https://ezgif.com/split/ezgif-2-6771e98488.gif
@@ -280,7 +288,7 @@ void* antSimulation(void* data) {
 
         printf("33333\n");
         printf("step %d, down %d\n",pdata->step,pdata->download);
-        //data_init(pdata, NULL);
+        //data_initServer(pdata, NULL);
         //TODO SPRAVIT po stahovani suboru a tiez broadcast
 
         printf("444\n");
@@ -349,7 +357,7 @@ void* antSimulation(void* data) {
 int main(int argc,char* argv[]) {
 
     ////SERVER
-    printLog("main: server");
+    printLogServer("int main(int argc,char* argv[])",1);
     if (argc < 3) {
         printError("Sever have to be launched with following arguments: port username.");
     }
@@ -359,7 +367,7 @@ int main(int argc,char* argv[]) {
     }
     char *userName = argv[2];
 
-    int serverSocket, clientSocket, clientSocket2, addr_size;
+    int serverSocket, clientSocket, addr_size;
     SA_IN server_addr, client_addr;
 
     //vytvorenie TCP socketu <sys/socket.h>
@@ -391,11 +399,13 @@ int main(int argc,char* argv[]) {
 
     //inicializacia dat zdielanych medzi vlaknami
     DATA data;
-    data_init(&data, userName);
+    data_initServer(&data, userName);
+
+
 
     //vytvorenie condArray pre klientov
-    pthread_cond_t startListening[SERVER_BACKLOG];
-    data.condStartListeningArray = startListening;
+    //pthread_cond_t startListening[SERVER_BACKLOG];
+    //data.condStartListeningArray = startListening;
 
     //vytvorenie arrayu pre sockety
     data.sockets = (int *) calloc(SERVER_BACKLOG, sizeof(int));
@@ -413,28 +423,34 @@ int main(int argc,char* argv[]) {
 
     //v hlavnom vlakne sa budu prijimat novi clienti
     while (true) {
+        printLogServer("MAIN: while (true)",2);
         pthread_mutex_lock(&data.mutex);
-        int numberOfClients = data.numberOfClients;
+        int numberOfConnections = data.numberOfConnections;
         pthread_mutex_unlock(&data.mutex);
 
-        printf("Pred acceptom\n");
+        //printf("Pred acceptom\n");
         if ((clientSocket = accept(serverSocket, (SA *) &client_addr, (socklen_t *) &addr_size)) < 0) {
+            printError("Error - accept");
             break;
-            //printError("Error - accept");
         } else {
-            printf("Po acceptom\n");
+            printLogServer("Accepted socket",2);
+            printf("Number of connections:%d\n",numberOfConnections);
             //akcepnuty socket
             pthread_mutex_lock(&data.mutex);
-            data.sockets[numberOfClients] = clientSocket;
-            data.numberOfClients++;
+            data.sockets[numberOfConnections] = clientSocket;
+            //poslane aktualne data
+            writeToSocketActualData(&data, data.sockets[numberOfConnections]);
+            //navysenie pre dalsieho klienta
+            data.numberOfConnections++;
             pthread_mutex_unlock(&data.mutex);
 
-            writeStateOfSharedData(&data,data.sockets[numberOfClients]);
-            pthread_create(&threadWrite[numberOfClients], NULL, data_writeDataServer, (void *) &data);
-            pthread_create(&threadRead[numberOfClients], NULL, data_readDataServer, (void *) &data);
-            pthread_cond_init(&data.condStartListeningArray[numberOfClients], NULL);
+            //vytvorenie vlakna pre posielanie dat klientovi
+            pthread_create(&threadWrite[numberOfConnections-1], NULL, data_writeDataServer, (void *) &data);
+            //vytvorenie vlakna pre citanie dat od klienta
+            pthread_create(&threadRead[numberOfConnections-1], NULL, data_readDataServer, (void *) &data);
+            //pthread_cond_init(&data.condStartListeningArray[numberOfConnections], NULL);
 
-            printf("Client[%d] connected = socket%d!\n", numberOfClients,clientSocket);
+            printf("Client[%d] connected(socket%d)\n", numberOfConnections, clientSocket);
 
             if(data_isStopped(&data)) {
                 break;

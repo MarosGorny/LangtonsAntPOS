@@ -11,14 +11,14 @@
 #include "structuresEnums.h"
 
 
-bool writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart);
+bool writeToServer(DATA* pdata, ACTION_CODE actionCode, char* buffer, char* textStart);
 void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode);
-void initSimulationSetting(DATA * pdata);
+void startSendingDataToServer(DATA * pdata);
 void *data_readDataClient(void *data);
 void readInitData(DATA* pdata);
 void data_initClient(DATA *data, const char* userName, int socket);
 void *data_writeDataClient(void *data);
-void readMakeAction(char* buffer, DATA *pdata);
+void processReadData(char* buffer, DATA *pdata);
 void data_destroyClient(DATA *data);
 
 void* printActionQuestionByStep(int step,DATA* pdata);

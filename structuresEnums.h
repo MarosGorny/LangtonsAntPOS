@@ -61,17 +61,19 @@ typedef struct data {
     int stop;
     int continueSimulation;
     //int written;
-    int numberOfClients;
+    int numberOfConnections;
     int step;
     int ready;
     int download;
+
+    char txtFileName[100];
 
     pthread_mutex_t mutex;
     pthread_mutex_t writtenMutex;
 
     pthread_cond_t startAntSimulation;
     pthread_cond_t continueAntSimulation;
-    pthread_cond_t* condStartListeningArray;
+    //pthread_cond_t* condStartListeningArray;
     pthread_cond_t updateClients;
 
     int** colorOfDisplay;

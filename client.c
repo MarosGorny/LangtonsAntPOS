@@ -46,13 +46,8 @@ int main(int argc, char *argv[]) {
 
     //inicializacia dat zdielanych medzi vlaknami
     printf("Socket = %d\n",sock);
-
-
     DATA data;
     data_initClient(&data, userName,sock);
-
-//    pthread_cond_t startListeningCond = PTHREAD_COND_INITIALIZER;
-//    //data.condStartListeningArray = &startListeningCond;
 
     readInitData(&data);
 
@@ -69,11 +64,7 @@ int main(int argc, char *argv[]) {
     //uzavretie socketu <unistd.h>
     close(sock);
 
-    //TODO SPRAVIT DESTROY AJ PRE DATA
     data_destroyClient(&data);
-
-
-
 
     return (EXIT_SUCCESS);
 }

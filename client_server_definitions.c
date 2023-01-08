@@ -10,11 +10,13 @@
 #include <stdbool.h>
 #include <netinet/in.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 
 void printData(DATA* pdata) {
-    printLogServer("printData(DATA* pdata)");
-    printf( "%s: con:%d col:%d row:%d ants:%d loaTyp%d logTyp%d\n stop:%d step:%d ready:%d down:%d\n number of clients:%d\n", pdata->userName\
+    printLogServer("printData(DATA* pdata)",1);
+    printf( "%s: con:%d col:%d row:%d ants:%d loaTyp%d logTyp%d\n stop:%d step:%d ready:%d down:%d\n number of clients:%d TXTFILE:%s\n", pdata->userName\
                                                         ,pdata->continueSimulation\
                                                         ,pdata->columns\
                                                         ,pdata->rows\
@@ -25,12 +27,23 @@ void printData(DATA* pdata) {
                                                         ,pdata->step\
                                                         ,pdata->ready\
                                                         ,pdata->download\
-                                                        ,pdata->numberOfClients);
+                                                        ,pdata->numberOfConnections\
+                                                        ,pdata->txtFileName);
 }
 
-void printLogServer(char *str) {
+void printLogServer(char *str, int i) {
 
-    printf ("\033[33;1m %s \033[0m\n",str);
+    if(i == 0) {
+        printf ("\033[33;1m %s \033[0m\n",str);
+    } else if (i == 1) {
+        printf ("\033[34;1m %s \033[0m\n",str); // bold blue
+    } else if (i == 2) {
+        printf ("\033[31;1m %s \033[0m\n",str); // bold red
+    } else {
+        printf ("\033[37;1m %s \033[0mm\n",str); // bold WHITE
+    }
+
+
 //#define RESET   "\033[0m"
 //#define BLACK   "\033[30m"      /* Black */
 //#define RED     "\033[31m"      /* Red */
@@ -62,7 +75,7 @@ void printError(char *str) {
 }
 
 void data_stop(DATA *data) {
-    printLogServer("CLIENT: void data_stop(DATA *data)");
+    printLogServer("CLIENT: void data_stop(DATA *data)",1);
     pthread_mutex_lock(&data->mutex);
     data->stop = 1;
     printf("Stop -> 1\n");
@@ -70,6 +83,7 @@ void data_stop(DATA *data) {
 }
 
 int data_isStopped(DATA *data) {
+    //printLogServer("data_isStopped(DATA *data)",1);
     int stop;
     pthread_mutex_lock(&data->mutex);
     stop = data->stop;
@@ -77,6 +91,35 @@ int data_isStopped(DATA *data) {
     return stop;
 }
 
+char* getPWD() {
+
+            struct passwd pwd;
+            struct passwd *result;
+            char *buf;
+            size_t bufsize;
+            int s;
+            bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
+            if (bufsize == -1)
+                bufsize = 0x4000; // = all zeroes with the 14th bit set (1 << 14)
+            buf = malloc(bufsize);
+            if (buf == NULL) {
+                perror("malloc");
+                exit(EXIT_FAILURE);
+            }
+            s = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
+            if (result == NULL) {
+                if (s == 0)
+                    printf("Not found\n");
+                else {
+                    errno = s;
+                    perror("getpwnam_r");
+                }
+                exit(EXIT_FAILURE);
+            }
+            char *homedir = result->pw_dir;
+            return homedir;
+            printf("HOMEDIR %s\n",homedir);
+}
 
 
 

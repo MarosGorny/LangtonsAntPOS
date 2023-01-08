@@ -7,9 +7,11 @@
 
 void printData(DATA* pdata);
 void printError(char *str);
-void printLogServer(char *str);
+void printLogServer(char *str,int i);
 int data_isStopped(DATA *data);
 void data_stop(DATA *data);
+
+char* getPWD();
 
 #endif //K_DEFINITIONS_H
 

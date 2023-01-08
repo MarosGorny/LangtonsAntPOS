@@ -20,8 +20,16 @@ char* quitMsg = ":quit";
 
 //void send_file(FILE *pFile, int i);
 
+/**
+ * Inicializacia zdielanych dat u klienta.
+*
+* @param  data DATA* - zdielane data
+* @param  userName char* - meno servera
+* @param  socket int - socket servera
+* @return void
+*/
 void data_initClient(DATA* data, const char* userName, int socket) {
-    printLog("CLIENT: void data_initClient(DATA *data, const char* userName,int socket)");
+    printLogServer("CLIENT: void data_initClient(DATA *data, const char* userName,int socket)",1);
 
     data->userName[USER_LENGTH] = '\0';
     strncpy(data->userName, userName, USER_LENGTH);
@@ -36,11 +44,12 @@ void data_initClient(DATA* data, const char* userName, int socket) {
     data->sockets[0] = socket;
     data->stop = 0;
     data->continueSimulation = 1;
-    //data->written = 0;
-    data->numberOfClients = 1;
+    data->numberOfConnections = 1;
     data->step = 0;
     data->ready = 0;
     data->download = 0;
+    data->txtFileName[99] = '\0';
+    strncpy(data->txtFileName, "NULL", USER_LENGTH);
 
 
     pthread_mutex_init(&data->mutex, NULL);
@@ -50,19 +59,24 @@ void data_initClient(DATA* data, const char* userName, int socket) {
     pthread_cond_init(&data->startAntSimulation, NULL);
     pthread_cond_init(&data->continueAntSimulation, NULL);
     pthread_cond_init(&data->updateClients, NULL);
-    data->condStartListeningArray == NULL;
-
+    //data->condStartListeningArray == NULL;
 }
 
+/**
+ * Vlakno na posielanie dat pre server.
+*
+* @param  data DATA* - zdielane data
+* @return void
+*/
 void *data_writeDataClient(void *data) {
-    printLog("CLIENT: void *data_writeData(void *data)");
+    printLogServer("CLIENT: void *data_writeData(void *data)",1);
     DATA *pdata = (DATA *)data;
 
     //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     printData(pdata);
 
-    initSimulationSetting(pdata);
+    startSendingDataToServer(pdata);
 
 
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
@@ -70,15 +84,21 @@ void *data_writeDataClient(void *data) {
     return NULL;
 }
 
+/**
+ * Precitanie prvej spravy od servera a nasledne updatnutie zdielanych dat.
+*
+* @param  data DATA* - zdielane data
+* @return void
+*/
 void readInitData(DATA* pdata) {
-    printLog("CLIENT: void readInitData(DATA* pdata)");
+    printLogServer("readInitData(DATA* pdata)",1);
 
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     bzero(buffer, BUFFER_LENGTH);
 
     if (read(pdata->sockets[0], buffer, BUFFER_LENGTH) > 0) {
-        printf("BUFF----%s\n",buffer);
+        //printf("BUFF----%s\n",buffer);
 
         char *posActionEnd;
         posActionEnd = strchr(buffer, ']');
@@ -97,8 +117,15 @@ void readInitData(DATA* pdata) {
 
 }
 
+/**
+ * Vlakno na prijimanie dat od servera.
+*
+* @param  data DATA* - zdielane data
+* @return void
+*/
 void *data_readDataClient(void *data) {
-    printLog("CLIENT: void *data_readData(void *data)");
+    printLogServer("CLIENT: void *data_readData(void *data)",1);
+    
     DATA *pdata = (DATA *)data;
 
     char buffer[BUFFER_LENGTH + 1];
@@ -106,16 +133,15 @@ void *data_readDataClient(void *data) {
     while(!data_isStopped(pdata)) {
         bzero(buffer, BUFFER_LENGTH);
 
+        //citanie dat od servera
         if (read(pdata->sockets[0], buffer, BUFFER_LENGTH) > 0) {
-            printf("XXXXXREAD DATA: %s\n",buffer);
+            printf("READ DATA: %s\n",buffer);
 
 
-            printf("Before action\n");
-            readMakeAction(buffer, pdata);
+            processReadData(buffer, pdata);
 
             pthread_mutex_lock(&pdata->mutex);
             //printf("data_readData: INCREMENTIG STEP\n");
-            //pdata->step++;
             printf("STEP: %d\n",pdata->step);
             printActionQuestionByStep(pdata->step,pdata);
             pthread_mutex_unlock(&pdata->mutex);
@@ -130,61 +156,89 @@ void *data_readDataClient(void *data) {
     return NULL;
 }
 
-void readMakeAction(char* buffer, DATA *pdata) {
-    printLog("CLIENT: void readMakeAction(char* buffer, DATA *pdata)");
-    printf("STEP ON READMAKEACTION START: %d\n",pdata->step);
+void processReadData(char* buffer, DATA *pdata) {
+    printLogServer("void processReadData(char* buffer, DATA *pdata)",1);
+
+    pthread_mutex_lock(&pdata->mutex);
+    int step = pdata->step;
+    pthread_mutex_unlock(&pdata->mutex);
+
+    printf("STEP ON READMAKEACTION START: %d\n",step);
+
     printf("BUFFER:%s\n",buffer);
-    char *target = NULL;
+
+
+
+    //String pre zaciatok a koniec zatvoriek (akcie)
     char *posActionBracketsStart = strchr(buffer, '[');
     char *posActionBracketsEnd = strchr(buffer, ']');
 
-    if(pdata->step == 9) {
-        printf("PDATA STEP 9 READING FROM FILE\n");
-        target = (char *) malloc(posActionBracketsEnd - posActionBracketsStart + 2);
-        memcpy(target, posActionBracketsStart, posActionBracketsEnd - posActionBracketsStart + 1);
-        target[posActionBracketsEnd - posActionBracketsStart + 1] = '\0';
+    if(step == 10) {
+        //time and filename
 
-        printf("Bracket Action: %s\n", target);
+        time_t t = time(NULL);
+        struct tm tm = *localtime(&t);
+        char fileNameString[50];
+        sprintf(fileNameString, "%s/savedFileClient_%04d%02d%02d_%02d%02d.txt",getPWD(),tm.tm_year+1900, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
+
+        char oldName[50];
+        sprintf(oldName,"%s/tempLocal.txt",getPWD());
+        printf("oldName: %s\n",oldName);
+        rename(oldName,fileNameString);
+        printf("File is saved on server with name:%s\n",fileNameString);
+        printf("RENAMED\n");
+    }
+
+    if(step == 9) {
+        //String pre zaciatok poslanej informacie
+
+        if(pdata->download == 2) {
+            char *target = NULL;
+
+            printf("PDATA STEP 9 READING FROM FILE\n");
 
 
-        FILE *fptr;
-        //fptr = fopen("../txtFiles/writedFile-.txt","w");
+            target = (char *) malloc(posActionBracketsEnd - posActionBracketsStart + 2);
+            memcpy(target, posActionBracketsStart, posActionBracketsEnd - posActionBracketsStart + 1);
+            target[posActionBracketsEnd - posActionBracketsStart + 1] = '\0';
 
-        if ((fptr = fopen("/home/gorny/tempLocal.txt","a")) == NULL){
-            printf("Error! opening file");
-        }
-        if(fptr == NULL) {
-            printf("Error writing\n");
-        } else {
-            printf("writed:%s\n",posActionBracketsEnd+3);
-            printf("%s\n",posActionBracketsEnd+3);
-            if(strcmp(posActionBracketsEnd+3,"END") == 0) {
-                pdata->step++;
-                pthread_cond_signal(&pdata->continueAntSimulation);
-            } else {
-                fprintf(fptr,"%s", posActionBracketsEnd + 3);
+            printf("Bracket Action: %s\n", target);
+
+            FILE *fptr;
+            //fptr = fopen("../txtFiles/writedFile-.txt","w");
+
+            if ((fptr = fopen("/home/gorny/tempLocal.txt","a")) == NULL){
+                printf("Error! opening file");
             }
+            if(fptr == NULL) {
+                printf("Error writing\n");
+            } else {
+                printf("writed:%s\n",posActionBracketsEnd+3);
+                printf("%s\n",posActionBracketsEnd+3);
+                if(strcmp(posActionBracketsEnd+3,"END") == 0) {
+                    pdata->step++;
+                    pthread_cond_signal(&pdata->continueAntSimulation);
+                } else {
+                    fprintf(fptr,"%s", posActionBracketsEnd + 3);
+                }
 
+            }
+            printf("CLOSING FILE\n");
+            fclose(fptr);
+            printf("CLOSED FILE\n");
+            free( target );
         }
-        printf("CLOSING FILE\n");
-        fclose(fptr);
-        printf("CLOSED FILE\n");
+
+
 
 
     } else if (posActionBracketsStart != NULL) {
-        printf("INSIDE if (posActionBracketsStart != NULL)\n ");
-
-
-        pthread_mutex_lock(&pdata->mutex);
-        int step = pdata->step;
-        int ready = pdata->ready;
-        pthread_mutex_unlock(&pdata->mutex);
-
+        printLogServer("INSIDE if (posActionBracketsStart != NULL)",2);
 
 
         updateAllData(pdata, posActionBracketsEnd);
 
-
+        pthread_mutex_lock(&pdata->mutex);
         switch (step) {
             case 0:
                 printf("Changed Shared date state\n");
@@ -193,37 +247,51 @@ void readMakeAction(char* buffer, DATA *pdata) {
                 printf("Changed number of ants: %d\n",pdata->numberOfAnts);
                 break;
             case 2:
-                printf("Changed loading type: %d\n",pdata->loadingType);
+                printf("Changed loading type: %d\n",pdata->loadingType+1);
                 break;
             case 3:
-                printf("Changed logic type: %d\n",pdata->logicType);
+                printf("Changed logic type: %d\n",pdata->logicType+1);
                 break;
             case 4:
                 printf("Changed rows: %d columns: %d\n",pdata->rows,pdata->columns);
                 break;
             case 5:
-                {   if (ready == 1) {
-                        printf("ANTS ARE READY\n");
+                {
+                    if(strcmp(pdata->txtFileName,"NULL") == 0) {
+
+                    }
+                    printf("TXT FILENAME IS %s\n",pdata->txtFileName);
+                }
+                break;
+            case 6:
+                {
+                    if (pdata->ready == 1) {
+                        printf("Simulation is ready\n");
                         pthread_cond_signal(&pdata->startAntSimulation);
-                        //data_written(pdata);
                     } else {
-                        printf("ANTS ARE NOT READY\n");
+                        printf("OK, let's wait\n");
                     }
                 }
                 break;
             default:
                 break;
         }
+        pthread_mutex_unlock(&pdata->mutex);
 
-        free( target );
+
     }
-    printf("STEP ON READMAKEACTION END: %d\n",pdata->step);
+    printLogServer("END:void processReadData(char* buffer, DATA *pdata)",0);
 
-    //if ( target ) printf( "%s\n", target );
 }
 
-void initSimulationSetting(DATA* pdata) {
-    printLog("void initSimulationSetting(DATA* pdata)");
+/**
+ * Rozdeli aky typ dat(akcie) sa ma poslat serveru podla toho v akom kroku aplikacii klient je.
+ *
+* @param  data DATA* - zdielane data
+* @return void
+*/
+void startSendingDataToServer(DATA* pdata) {
+    printLog("void startSendingDataToServer(DATA* pdata)");
     printf("STEP %d\n",pdata->step);
 
     while(!data_isStopped(pdata)) {
@@ -233,7 +301,7 @@ void initSimulationSetting(DATA* pdata) {
         int step = pdata->step;
         pthread_mutex_unlock(&pdata->mutex);
 
-        //printf(" initSimulationSetting STEP: %d",pdata->step);
+        //printf(" startSendingDataToServer STEP: %d",pdata->step);
         switch (step) {
             case 1:
                 writeToSocketByAction(pdata,NUMBER_OF_ANTS_ACTION);
@@ -261,20 +329,25 @@ void initSimulationSetting(DATA* pdata) {
                 break;
             case 9:
                 usleep(200);
+                break;
             case 10:
                 writeToSocketByAction(pdata,END_ACTION);
                 default:
                 break;
         }
-
-
-        if(step >= 7) {
-            //TODO CONTINUE/PAUSE DOROBIT DO SWITCHu
-        }
     }
 }
+
+
+/**
+ * Vypise pre klienta na terminal info ku danemu kroku.
+ * 
+* @param  step int - Aktualny krok v aplikacii
+* @param  data DATA* - zdielane data
+* @return void
+*/
 void* printActionQuestionByStep(int step, DATA* pdata) {
-    printLog("char* printActionQuestionByStep(int step)");
+    printLogServer("char* printActionQuestionByStep(int step)",1);
     printf("STEP: %d\n",step);
     if(step == 1) {
         printf("\nHow many ants do you want in simulation? [write number and press enter]\n");
@@ -305,29 +378,33 @@ void* printActionQuestionByStep(int step, DATA* pdata) {
 
         //return "[Dimensions]";
     } else if (step == 5) {
-        if(pdata->loadingType == FILE_INPUT_LOCAL) {
-            printf("\nWrite name of the file on your computer?\n");
-        } else if (pdata->loadingType == FILE_INPUT_SERVER){
-            printf("\nWrite name of the file on server?\n");
+        if(strcmp(pdata->txtFileName,"NULL") == 0) {
+            if(pdata->loadingType == FILE_INPUT_LOCAL) {
+                printf("\nWrite name of the file on your computer\n");
+            } else if (pdata->loadingType == FILE_INPUT_SERVER){
+                printf("\nWrite name of the file on server\n");
+            }
+        } else {
+            printf("\nFile %s was loaded\n",pdata->txtFileName);
         }
 
     } else if (step == 6) {
-        printf("\nAre you ready for start? [write 1 for yes, 2 for no and press enter]\n");
+        printf("\nAre you ready to start? [write 1 for yes and press enter]\n");
         //return "[READY]";
     } else if (step == 7) {
         printf("\nWaiting for simulation\n");
     } else if (step == 8) {
         printf("\nWhere do you want to download finished world? [write number and press enter]\n");
         printf("1: Server.\n");
-        printf("2: My computer.\n");
+        printf("2: Clients.\n");
         printf("3: Nowhere.\n");
     } else if (step == 10) {
         printf("\nPlease, select action? [write number and press enter]\n");
         printf("1: Start new simulation.\n");
         printf("2: End simulation.\n");
     }
-
-    //return "";
+    
+    return NULL;
 }
 
 char* getActionStringInBracket(ACTION_CODE actionCode) {
@@ -356,38 +433,57 @@ char* getActionStringInBracket(ACTION_CODE actionCode) {
     }
 }
 
-
+/**
+ * Poslu sa informacie pre server podla toho aka akcia bola.
+ *
+* @param  step int - Aktualny krok v aplikacii
+* @param  data DATA* - zdielane data
+* @return void
+*/
 void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
-    printLog("void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode)");
+    printLogServer("void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode)",1);
     printf("ACTION CODE IN writeToSocketByAction : %d\n",actionCode);
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     int userNameLength = strlen(pdata->userName);
     char* action;
 
+    pthread_mutex_lock(&pdata->mutex);
     int tempStep = pdata->step;
+    int rows = pdata->rows;
+    pthread_mutex_unlock(&pdata->mutex);
 
-    if(tempStep == 4 && pdata->rows != 0) {
-        action = getActionStringInBracket(SELECTING_BLACK_BOXES);
+    //ak je krok 4 (vyberanie rozmeru), ale rozmer uz bol vybraty
+    if(tempStep == 4 && rows != 0) {
         printf("action = getActionStringInBracket(SELECTING_BLACK_BOXES);\n");
+        action = getActionStringInBracket(SELECTING_BLACK_BOXES);
     } else {
-        if(tempStep == 5) {
+        //ak sa svet nacitava zo suboru
+            action = getActionStringInBracket(actionCode);
+            printf("action = getActionStringInBracket(actionCode);\n");
+    }
+
+//////
+    if(tempStep == 5 ) {
+        if(strcmp(pdata->txtFileName,"NULL") == 0) {
+            action = "[FILENAME]";
+        } else {
+            //TODO TADADA
             if(pdata->loadingType==FILE_INPUT_LOCAL) {
                 action = "[FileL]";
                 printf("action = FileL;\n");
-                writeToSocketAndSetSharedAntsData(pdata,FILE_ACTION,buffer,NULL);
-                //printf("GOTO EXIT FILE INPUT_LOCAL\n");
-                //goto exit;
+                //Poslanie dat serveru
+                writeToServer(pdata, FILE_ACTION, buffer, NULL);
+            printf("GOTO EXIT FILE INPUT_LOCAL\n");
+            goto exit;
             } else if (pdata->loadingType==FILE_INPUT_SERVER) {
                 action = "[FileS]";
                 printf("action = FileS;\n");
             }
-        } else {
-            action = getActionStringInBracket(actionCode);
-            printf("action = getActionStringInBracket(actionCode);\n");
         }
-    }
 
+    }
+//////
 
 
     fd_set inputs;
@@ -428,15 +524,15 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
                     printf("End of communication.\n");
                     data_stop(pdata);
                     goto exit;
-                    //TODO SPRAVIT QUIT A END PORIADNE
+
                 } else {
                     printf("BUFFER TO WRITE: %s  (writeToSocketByAction)\n",buffer);
                     if(tempStep == 4 && pdata->rows != 0) {
-                        if(writeToSocketAndSetSharedAntsData(pdata,SELECTING_BLACK_BOXES,buffer,textStart)) {
+                        if(writeToServer(pdata, SELECTING_BLACK_BOXES, buffer, textStart)) {
                             goto exit;
                         }
                     } else {
-                        if(writeToSocketAndSetSharedAntsData(pdata,actionCode,buffer,textStart)) {
+                        if(writeToServer(pdata, actionCode, buffer, textStart)) {
                             goto exit;
                         }
                     }
@@ -450,8 +546,8 @@ void writeToSocketByAction(DATA* pdata,ACTION_CODE actionCode) {
 
 
 
-bool writeToSocketAndSetSharedAntsData(DATA* pdata, ACTION_CODE actionCode, char* buffer, char* textStart) {
-    printLog("writeToSocketAndSetSharedAntsData(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart)");
+bool writeToServer(DATA* pdata, ACTION_CODE actionCode, char* buffer, char* textStart) {
+    printLog("writeToServer(DATA* pdata,ACTION_CODE actionCode, char* buffer, char* textStart)");
     printf("BUFFER IN SOCKET %s\n",buffer);
     printf("SOCKEEEEEEEEEEEET %d\n",pdata->sockets[0]);
     printf("Action code: %d\n",actionCode);
@@ -572,25 +668,43 @@ bool writeToSocketAndSetSharedAntsData(DATA* pdata, ACTION_CODE actionCode, char
             }
         }
     } else if (actionCode == FILE_ACTION) {
-        printf("FILE ACTION\n");
-        if(pdata->loadingType == FILE_INPUT_LOCAL) {
-            printf("FILE ACTION LOCAL\n");
-            //TODO nacitat z lokalneho suboru a poslat na server alebo poslat cely subor
 
-            FILE *fptrRead;
-            if ((fptrRead = fopen("../txtFiles/test.txt","r")) == NULL){
-                printf("Error! opening file");
-            } else {
-                printf("SENDING FILE\n");
-                send_file(buffer, fptrRead, pdata->sockets[0],pdata);
-                printf("SENDED FILE\n");
+        if(strcmp(pdata->txtFileName,"NULL") == 0) {
+            strcpy(pdata->txtFileName,textStart);
+
+            write(pdata->sockets[0], buffer, strlen(buffer) + 1);
+            return true;
+        } else {
+            printf("FILE ACTION\n");
+            if(pdata->loadingType == FILE_INPUT_LOCAL) {
+                printf("FILE ACTION LOCAL\n");
+                FILE *fptrRead;
+                printf("else if (actionCode == FILE_ACTION)\n");
+                printf("HOMEDIR :%s\n",getPWD());
+
+                char fileNameString[50];
+                sprintf(fileNameString, "%s/%s", getPWD(),pdata->txtFileName);
+                printf("FILENAME OPEN STRING: %s\n",fileNameString);
+
+                if ((fptrRead = fopen(fileNameString,"r")) == NULL){
+                    printf("Error! opening file");
+                } else {
+                    printf("SENDING FILE\n");
+                    send_file(buffer, fptrRead, pdata->sockets[0],pdata);
+                    printf("SENDED FILE\n");
+                    //pdata->step++;
+                    return true;
+                }
+            } else if (pdata->loadingType == FILE_INPUT_SERVER) {
+                printf("FILE ACTION SERVER\n");
+
+                //TODO poslat serveru meno
                 return true;
             }
-        } else if (pdata->loadingType == FILE_INPUT_SERVER) {
-            printf("FILE ACTION SERVER\n");
-            //TODO dat ziadost serveru, nech posle subor vsetkym klientom
-            return true;
         }
+
+
+
 
     } else if (actionCode == READY_ACTION) {
         printf("IN READY\n");
@@ -665,53 +779,64 @@ void data_destroyClient(DATA *data) {
     free(data->sockets);
 }
 
-
+/**
+ * Updatnutie zdielanych dat na zaklade stringu ktory bol prijaty
+*
+* @param  data DATA* - zdielane data
+* @param  posActionEnd char* - string od konca hranatej zatvorky v ktorej bola akcia
+* @return void
+*/
 void updateAllData(DATA* pdata,char* posActionEnd) {
-    printLog("void updateAllData(DATA* pdata,char* posActionEnd)");
+    printLogServer("void updateAllData(DATA* pdata,char* posActionEnd)",1);
     printf("UPDATE ALL DATA START: %s\n",posActionEnd+2);
+    printf("1\n");
     char* token = strtok(posActionEnd+2," ");
-    //printf("TOKEN: %s\n",token);
+    printf("2\n");
     int tempNumber;
 
-    // loop through the string to extract all other tokens
+    if(token != NULL) {
+        printf("3\n");
+        // loop through the string to extract all other tokens
+        for (int i = 0; i < 10; i++) {
+            tempNumber = atoi(token);
+            //printf("SWITCH i=%d temp=%d\n",i,tempNumber);
+            switch (i) {
+                case 0:
+                    pdata->numberOfAnts = tempNumber;
+                    break;
+                case 1:
+                    pdata->loadingType = tempNumber;
+                    break;
+                case 2:
+                    pdata->logicType = tempNumber;
+                    break;
+                case 3:
+                    pdata->rows = tempNumber;
+                    break;
+                case 4:
+                    pdata->columns = tempNumber;
+                    break;
+                case 5:
+                    pdata->stop = tempNumber;
+                    break;
+                case 6:
+                    pdata->continueSimulation = tempNumber;
+                    break;
+                case 7:
+                    pdata->step = tempNumber;
+                    break;
+                case 8:
+                    pdata->ready = tempNumber;
+                    break;
+                case 9:
+                    pdata->download = tempNumber;
+                default:
+                    break;
+            }
+            token = strtok(NULL, " ");
 
-    for (int i = 0; i < 10; i++) {
-        tempNumber = atoi(token);
-        //printf("SWITCH i=%d temp=%d\n",i,tempNumber);
-        switch (i) {
-            case 0:
-                pdata->numberOfAnts = tempNumber;
-                break;
-            case 1:
-                pdata->loadingType = tempNumber;
-                break;
-            case 2:
-                pdata->logicType = tempNumber;
-                break;
-            case 3:
-                pdata->rows = tempNumber;
-                break;
-            case 4:
-                pdata->columns = tempNumber;
-                break;
-            case 5:
-                pdata->stop = tempNumber;
-                break;
-            case 6:
-                pdata->continueSimulation = tempNumber;
-                break;
-            case 7:
-                pdata->step = tempNumber;
-
-                break;
-            case 8:
-                pdata->ready = tempNumber;
-                break;
-            case 9:
-                pdata->download = tempNumber;
-            default:
-                break;
         }
-        token = strtok(NULL, " ");
+
     }
+    printLogServer("END:void updateAllData(DATA* pdata,char* posActionEnd)",0);
 }

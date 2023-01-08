@@ -9,19 +9,27 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <stdlib.h>
-#include <errno.h>
+
 
 char* endMsg = ":end";
 char* pauseMsg = ":pause";
 char* continueMsg = ":continue";
 char* quitMsg = ":quit";
 
-void writeStateOfSharedData(DATA* pdata, int socket){
-    printLogServer("void writeStateOfSharedData(DATA* pdata, int socket)");
+
+/**
+ * Posle vsetky dolezite udaje z DATA* do socketu.
+*
+* @param  data DATA* - zdielane data
+ * @param  socket int - socket kam budu poslane data
+* @return void void pointer
+*/
+void writeToSocketActualData(DATA* pdata, int socket){
+    printLogServer(" writeToSocketActualData(DATA* pdata, int socket)",1);
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
     char* action = "[Shared date state]";
-    sprintf(buffer, "%s%s: %d %d %d %d %d %d %d %d %d %d\n"
+    sprintf(buffer, "%s%s: %d %d %d %d %d %d %d %d %d %d %s\n"
                                                         ,pdata->userName\
                                                         ,action\
                                                         ,pdata->numberOfAnts\
@@ -33,24 +41,23 @@ void writeStateOfSharedData(DATA* pdata, int socket){
                                                         ,pdata->continueSimulation\
                                                         ,pdata->step\
                                                         ,pdata->ready\
-                                                        ,pdata->download);
-                                                        //TODO Ak by som chcel na poziciu blacBox pridat x a y akontrolovat zmenu
+                                                        ,pdata->download\
+                                                        ,pdata->txtFileName);
     char *pos = strchr(buffer, '\n');
     if (pos != NULL) {
         *pos = '\0';
     }
-    printf("Pred writom\n");
     write(socket, buffer, strlen(buffer) + 1);
-    printf("State data sended: %s\n",buffer);
+    printf("Data sent: %s\n",buffer);
 };
 
 
 void *data_writeDataServer(void *data) {
-    printLogServer("void *data_writeData(void *data)");
+    printLogServer("void *data_writeData(void *data)",1);
     DATA *pdata = (DATA *)data;
 
     pthread_mutex_lock(&pdata->mutex);
-    int idClient = pdata->numberOfClients - 1;
+    int idClient = pdata->numberOfConnections - 1;
     pthread_mutex_unlock(&pdata->mutex);
 
     //pre pripad, ze chceme poslat viac dat, ako je kapacita buffra
@@ -71,10 +78,40 @@ void *data_writeDataServer(void *data) {
 
         printf("STEP IN WRITEDATA:%d %d\n",pdata->step,pdata->download);
         if(pdata->step == 9 && pdata->download != 0) {
-            writeStateOfSharedData(pdata,pdata->sockets[idClient]);
-            send_fileServer(pdata->sockets[idClient],pdata);
+            //writeToSocketActualData(pdata, pdata->sockets[idClient]);
+            if(pdata->download == 2) {
+                writeToSocketActualData(pdata, pdata->sockets[idClient]);
+                usleep(500);
+                send_fileServer(pdata->sockets[idClient],pdata);
+            }
+
+            if(pdata->download == 1) {
+                //time and filename
+                time_t t = time(NULL);
+                struct tm tm = *localtime(&t);
+                char fileNameString[50];
+                sprintf(fileNameString, "%s/savedFileServer_%04d%02d%02d_%02d%02d.txt",getPWD(),tm.tm_year+1900, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
+
+                char oldName[50];
+                sprintf(oldName,"%s/temp.txt",getPWD());
+                printf("oldName: %s\n",oldName);
+                rename(oldName,fileNameString);
+                printf("File is saved on server with name:%s\n",fileNameString);
+                printf("RENAMED\n");
+                pdata->step++;
+                writeToSocketActualData(pdata, pdata->sockets[idClient]);
+            } else if (pdata->download == 2) {
+                char oldName[50];
+                sprintf(oldName,"%s/temp.txt",getPWD());
+                remove(oldName);
+            }
+
+
+
+
+
         } else {
-            writeStateOfSharedData(pdata,pdata->sockets[idClient]);
+            writeToSocketActualData(pdata, pdata->sockets[idClient]);
         }
 
 
@@ -82,7 +119,7 @@ void *data_writeDataServer(void *data) {
         pthread_mutex_unlock(&pdata->mutex);
     }
 
-    //initSimulationSetting(pdata);
+    //startSendingDataToServer(pdata);
     //writeMsgToAllParticipants(pdata);
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 
@@ -91,11 +128,11 @@ void *data_writeDataServer(void *data) {
 }
 
 void *data_readDataServer(void *data) {
-    printLogServer("void *data_readData(void *data)");
+    printLogServer("void *data_readData(void *data)",1);
     DATA *pdata = (DATA *)data;
 
     pthread_mutex_lock(&pdata->mutex);
-    int idClient = pdata->numberOfClients - 1;
+    int idClient = pdata->numberOfConnections - 1;
     int socket = pdata->sockets[idClient];
     pthread_mutex_unlock(&pdata->mutex);
 
@@ -103,77 +140,36 @@ void *data_readDataServer(void *data) {
 
     char buffer[BUFFER_LENGTH + 1];
     buffer[BUFFER_LENGTH] = '\0';
+    int n = 0;
 
     //printf("BEFORE WHILE\n");
     while(!data_isStopped(pdata)) {
         printf("data_read stop: %d\n",pdata->stop);
-        int n = 0;
+
         //printf("Client:%d INSIDE WHILE\n",idClient);
         bzero(buffer, BUFFER_LENGTH);
         if (read(socket, buffer, BUFFER_LENGTH) > 0) {
             //printf("Client:%d INSIDE READ\n",idClient);
 
-//            FILE *fptr;
-//            //fptr = fopen("../txtFiles/writedFile-.txt","w");
-//            time_t t = time(NULL);
-//            struct tm tm = *localtime(&t);
-//            char fileNameString[50];
-//            sprintf(fileNameString, "/home/gorny/txt.txt");
-//            if ((fptr = fopen(fileNameString,"w")) == NULL){
-//                printf("Error! opening file");
-//            } else {
-//                fprintf(fptr,"%s", "ahoj\n");
-//            }
-//
-//            printf("CLOSING FILE\n");
-//            fclose(fptr);
-//            printf("CLOSED FILE\n");
-
-//#include <unistd.h>
-//#include <sys/types.h>
-//#include <pwd.h>
-//
-//            struct passwd pwd;
-//            struct passwd *result;
-//            char *buf;
-//            size_t bufsize;
-//            int s;
-//            bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-//            if (bufsize == -1)
-//                bufsize = 0x4000; // = all zeroes with the 14th bit set (1 << 14)
-//            buf = malloc(bufsize);
-//            if (buf == NULL) {
-//                perror("malloc");
-//                exit(EXIT_FAILURE);
-//            }
-//            s = getpwuid_r(getuid(), &pwd, buf, bufsize, &result);
-//            if (result == NULL) {
-//                if (s == 0)
-//                    printf("Not found\n");
-//                else {
-//                    errno = s;
-//                    perror("getpwnam_r");
-//                }
-//                exit(EXIT_FAILURE);
-//            }
-//            char *homedir = result->pw_dir;
-//            printf("HOMEDIR %s\n",homedir);
-
-
             makeActionNew(buffer,pdata);
 
-            //readMakeAction(buffer,pdata);
+            //processReadData(buffer,pdata);
 
-            if(pdata->step == 5)
-                n++;
-            if(pdata->step == 5 && n > 1) {
+            printf("NNNNNNNNNNNNNNNNNNNNNNNNNNNNN:%d\n",n);
+            printf("STEEEEEEEEEEEEEEEEEEEEEEEEEEP:%d\n",pdata->step);
 
-            } else {
-                printf("pthread_cond_broadcast(&pdata->updateClients);\n");
-                pthread_mutex_lock(&pdata->mutex);
-                pthread_cond_broadcast(&pdata->updateClients);
-                pthread_mutex_unlock(&pdata->mutex);
-            }
+
+            printf("pthread_cond_broadcast(&pdata->updateClients);\n");
+            pthread_mutex_lock(&pdata->mutex);
+            pthread_cond_broadcast(&pdata->updateClients);
+            pthread_mutex_unlock(&pdata->mutex);
+//            if(pdata->step == 5)
+//                n++;
+//            if(pdata->step == 5 && n > 1) {
+//
+//            } else {
+//
+//            }
 
 
 
@@ -191,7 +187,8 @@ void *data_readDataServer(void *data) {
 
 
 void makeActionNew(char* buffer, DATA *pdata) {
-    printLogServer("void makeActionNew(char* buffer, DATA *pdata)");
+    printLogServer("void makeActionNew(char* buffer, DATA *pdata)",1);
+    printf("PRISLA SPRAVA:%s\n",buffer);
 
     if(pdata->stop == 1) {
         printf("READ THREAD SHUTED DOWN\n");
@@ -289,6 +286,15 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 pdata->step++;
 
 
+            } else if (strcmp(target,"[FILENAME]") == 0)  {
+                addStep = false;
+                printf("else if (strcmp(target,\"[FILENAME]\") == 0)\n");
+                printf("TXT FILE PDATA %s\n",pdata->txtFileName);
+                strcpy(pdata->txtFileName,posActionBracketsEnd+3);
+                printf("TXT FILE PDATA %s\n",pdata->txtFileName);
+
+
+
             } else if (strcmp(target,"[FileL]") == 0) {
 //                if(pdata->step == 5) {
 //                    pdata->step++;
@@ -363,7 +369,7 @@ void makeActionNew(char* buffer, DATA *pdata) {
 
                 if(temp == 1) {   // server
                     printf("DOSTAL SA DO ENDU1\n");
-                    data_init(pdata,NULL);
+                    data_initServer(pdata, NULL);
                     addStep = false;
                 } else if (temp == 2) { //local
                     printf("DOSTAL SA DO ENDU2\n");
@@ -452,19 +458,29 @@ void data_destroyServer(DATA *data) {
 
 
 
-    for (int i = 0; i < SERVER_BACKLOG; i++) {
-        pthread_cond_destroy(&data->condStartListeningArray[i]);
-    }
+//    for (int i = 0; i < SERVER_BACKLOG; i++) {
+//        pthread_cond_destroy(&data->condStartListeningArray[i]);
+//    }
     free(data->sockets);
 }
 
-void data_init(DATA *data, const char* userName) {
-    printLogServer("void data_init(DATA *data, const char* userName, const int socket)");
-    data->userName[USER_LENGTH] = '\0';
+/**
+ * Inicializacia zdielanych dat na serveri.
+ * Pokial je username NULL, znamena to, ze data sa len resetuju,
+ * takze niektore kroky sa mozu vynechat.
+*
+* @param  data DATA* - zdielane data
+ * @param  userName char* - meno servera
+* @return void
+*/
+void data_initServer(DATA *data, const char* userName) {
+    printLogServer("void data_initServer(DATA *data, const char* userName)",1);
+
     if(userName != NULL) {
+        data->userName[USER_LENGTH] = '\0';
         strncpy(data->userName, userName, USER_LENGTH);
         data->continueSimulation = 1;
-        data->numberOfClients = 1;
+        data->numberOfConnections = 1;
 
         //mutexes init
         pthread_mutex_init(&data->mutex, NULL);
@@ -486,23 +502,21 @@ void data_init(DATA *data, const char* userName) {
 
     //Communication data
     data->stop = 0;
-
-
     data->step = 1;
     data->ready = 0;
-
-
+    data->txtFileName[99] = '\0';
+    strncpy(data->txtFileName, "NULL", USER_LENGTH);
 }
 
 void write_file(int socket) {
-    printLogServer("void write_file(int socket)");
+    //printLogServer("void write_file(int socket)");
     int n;
     FILE *fptrRead;
     char *filename = "prijate.txt";
     char buffer[BUFFER_LENGTH];
     fptrRead = fopen(filename, "w");
     while (1) {
-        printLogServer("REAAD WHILE 1");
+        printLogServer("REAAD WHILE 1",2);
         n = read(socket, buffer, BUFFER_LENGTH);
         if (n <= 0) {
             break;
@@ -516,7 +530,7 @@ void write_file(int socket) {
 }
 
 void send_fileServer(int socket,DATA* pdata) {
-    printLogServer("void send_fileServer(FILE *pFile, int socket)");
+    printLogServer("void send_fileServer(int socket,DATA* pdata)",1);
 
     FILE *fptrRead;
     if ((fptrRead = fopen("/home/gorny/temp.txt","r")) == NULL){
@@ -536,6 +550,8 @@ void send_fileServer(int socket,DATA* pdata) {
         int countCharAfterName = 2 + strlen(action);
         sprintf(buffer, "%s%s: ", pdata->userName,action);
         char *textStart = buffer + (userNameLength + countCharAfterName);
+
+
 
         int n = 0;
         while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), fptrRead) != NULL)  {
@@ -573,14 +589,8 @@ void send_fileServer(int socket,DATA* pdata) {
     fclose(fptrRead);
 
 
-
-
-
-    //sleep(6);
-
-
-    printLogServer("OUT OF: void send_fileServer(FILE *pFile, int socket)");
     pdata->step++;
+    printLogServer("OUT OF: void send_fileServer(FILE *pFile, int socket)",0);
 }
 
 

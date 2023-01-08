@@ -11,13 +11,13 @@
 #define LANGTONSANTPOS_SERVER_DEFINITION_H
 
 
-void writeStateOfSharedData(DATA* pdata, int socket);
+void writeToSocketActualData(DATA* pdata, int socket);
 bool semicolonAction(char* buffer, DATA *pdata);
 void *data_writeDataServer(void *data);
 void *data_readDataServer(void *data);
 void makeActionNew(char* buffer, DATA *pdata);
 void data_destroyServer(DATA *data);
-void data_init(DATA *data, const char* userName);
+void data_initServer(DATA *data, const char* userName);
 
 void write_file(int socket);
 void send_fileServer(int socket,DATA* pdata);

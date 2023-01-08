@@ -38,6 +38,7 @@ typedef enum direction {
     EAST = 1,
     SOUTH = 2,
     WEST = 3,
+    COLL_DIRECTION = 10,
 }ANT_DIRECTION;
 
 typedef enum backgroundColor {
@@ -60,7 +61,6 @@ typedef struct data {
     int* sockets;
     int stop;
     int continueSimulation;
-    //int written;
     int numberOfConnections;
     int step;
     int ready;
@@ -85,6 +85,7 @@ typedef  struct box{
     BACKGROUND_COLOR color;
     int x;
     int y;
+    int numberOfAnts;
     //TODO LINKED LIST NA ANTS??
 
     pthread_mutex_t* mut;
@@ -104,6 +105,13 @@ typedef enum actionCode {
     END_ACTION = 10,
 }ACTION_CODE;
 
+typedef enum collision {
+    UKNOWN_COLL = -1,
+    ONLY_FIRST_ALIVE_COLL = 1,
+    ALL_DIE_COLL = 2,
+    HALF_DOWN_MOVEMENT_COLL = 3,
+}COLLISION;
+
 typedef struct display{
     int width;
     int height;
@@ -117,6 +125,7 @@ typedef struct display{
     LOGIC_TYPE logicType;
     BOX*** box;
     DATA* dataSocket;
+    COLLISION collisionType;
 }DISPLAY;
 
 typedef struct ant {

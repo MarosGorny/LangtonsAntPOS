@@ -10,6 +10,7 @@
 void* antF(void* arg) {
     ANT* ant = arg;
     DISPLAY* antsDisplay = ant->display;
+    COLLISION collisionType = antsDisplay->collisionType;
 
     bool antIsAlive = true;
     int counter = 0;
@@ -26,8 +27,64 @@ void* antF(void* arg) {
         pthread_barrier_t* originalBarrier = ant->display->mainBarrier;
         pthread_barrier_wait(originalBarrier);
 
-        //printf("Ant[%d] TryLock\n",ant->id);
-        if(pthread_mutex_trylock(antsDisplay->box[antsOrgY][antsOrgX]->mut) == 0) {
+
+        if(collisionType == ONLY_FIRST_ALIVE_COLL) {
+            if(pthread_mutex_trylock(antsDisplay->box[antsOrgY][antsOrgX]->mut) != 0) {
+                printf("Ant ONLY_FIRST_ALIVE_COLL DEAD\n");
+                printf("Ant[%d] has a collision on X:%d Y:%d\n",ant->id,ant->x,ant->y);
+                printf("Ant[%d] is dead. After %d iterations\n",ant->id,counter);
+                pthread_mutex_lock(antsDisplay->mut);
+                //printf("Ant[%d] LOCKED MAIN MUT COLL\n",ant->id);
+                antsDisplay->actualNumberOfAnts--;
+                printf("Numbers of ants decremented by 1\n");
+                antsDisplay->mainBarrier = &antsDisplay->barriers[antsDisplay->actualNumberOfAnts-1];
+                pthread_mutex_unlock(antsDisplay->mut);
+                //printf("Ant[%d] UNLOCKED MAIN MUT COLL\n",ant->id);
+                antIsAlive = false;
+            }
+        } else if (collisionType == HALF_DOWN_MOVEMENT_COLL) {
+            pthread_mutex_lock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+            printf("half die ant[%d],numberOfAnts:%d\n",ant->id,antsDisplay->box[antsOrgY][antsOrgX]->numberOfAnts);
+            int numberOfAnts = ++antsDisplay->box[antsOrgY][antsOrgX]->numberOfAnts;
+
+            printf("half die ant[%d],numberOfAnts:%d\n",ant->id,numberOfAnts);
+            pthread_mutex_unlock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+            if(numberOfAnts % 2 == 0) {
+                printf("Ant[%d] IS DEAAAAAAAAAAAAAAAD \n",ant->id);
+                ant->direction = COLL_DIRECTION;
+            }
+            pthread_barrier_wait(originalBarrier);
+
+            pthread_mutex_lock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+            antsDisplay->box[antsOrgY][antsOrgX]->numberOfAnts = 0;
+            pthread_mutex_unlock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+        } else if (collisionType == ALL_DIE_COLL) {
+            pthread_mutex_lock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+            printf("NUMBER OF ANT half die %d\n",antsDisplay->box[antsOrgY][antsOrgX]->numberOfAnts);
+            antsDisplay->box[antsOrgY][antsOrgX]->numberOfAnts++;
+            pthread_mutex_unlock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+
+            pthread_barrier_wait(originalBarrier);
+            if(antsDisplay->box[antsOrgY][antsOrgX]->numberOfAnts != 1) {
+                printf("Ant ALL_DIE_COLL DEAD\n");
+                printf("Ant[%d] has a collision on X:%d Y:%d\n",ant->id,ant->x,ant->y);
+                printf("Ant[%d] is dead. After %d iterations\n",ant->id,counter);
+                pthread_mutex_lock(antsDisplay->mut);
+                //printf("Ant[%d] LOCKED MAIN MUT COLL\n",ant->id);
+                antsDisplay->actualNumberOfAnts--;
+                printf("Numbers of ants decremented by 1\n");
+                antsDisplay->mainBarrier = &antsDisplay->barriers[antsDisplay->actualNumberOfAnts-1];
+                pthread_mutex_unlock(antsDisplay->mut);
+                //printf("Ant[%d] UNLOCKED MAIN MUT COLL\n",ant->id);
+                antIsAlive = false;
+            }
+            pthread_barrier_wait(originalBarrier);
+            pthread_mutex_lock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+            antsDisplay->box[antsOrgY][antsOrgX]->numberOfAnts = 0;
+            pthread_mutex_unlock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
+        }
+
+        if(antIsAlive) {
 
             BACKGROUND_COLOR antBoxColor = getBoxColorOfAnt(*(ant), (const BOX ***) antsDisplay->box);
             if(antBoxColor == WHITE) {
@@ -46,10 +103,16 @@ void* antF(void* arg) {
                     case WEST:
                         ant->y += antsDisplay->logicType == DIRECT ? -1:1;
                         break;
+                    case COLL_DIRECTION:
+                        ant->x += -1;
+                        break;
                     default:
                         fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
                 }
-                ant->direction = antsDisplay->logicType == DIRECT ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
+                if(ant->direction != COLL_DIRECTION) {
+                    ant->direction = antsDisplay->logicType == DIRECT ?  ((ant->direction + 1) % 4) : ((ant->direction + 3) % 4);
+                }
+
 
             } else if (antBoxColor == BLACK) {
                 //printf("BLACK\n");
@@ -67,10 +130,15 @@ void* antF(void* arg) {
                     case WEST:
                         ant->y += antsDisplay->logicType == DIRECT ? 1:-1;
                         break;
+                    case COLL_DIRECTION:
+                        ant->x += -1;
+                        break;
                     default:
                         fprintf(stderr,"ant[%d] direction is not set\n",ant->id);
                 }
-                ant->direction = antsDisplay->logicType == DIRECT ?  ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
+                if(ant->direction != COLL_DIRECTION) {
+                    ant->direction = antsDisplay->logicType == DIRECT ? ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
+                }
             }
             //printf("END LOOP\n");
 
@@ -98,17 +166,6 @@ void* antF(void* arg) {
             pthread_mutex_unlock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
             //printf("After unlock\n");
 
-        } else {
-            printf("Ant[%d] has a collision on X:%d Y:%d\n",ant->id,ant->x,ant->y);
-            printf("Ant[%d] is dead. After %d iterations\n",ant->id,counter);
-            pthread_mutex_lock(antsDisplay->mut);
-            //printf("Ant[%d] LOCKED MAIN MUT COLL\n",ant->id);
-            antsDisplay->actualNumberOfAnts--;
-            printf("Numbers of ants decremented by 1\n");
-            antsDisplay->mainBarrier = &antsDisplay->barriers[antsDisplay->actualNumberOfAnts-1];
-            pthread_mutex_unlock(antsDisplay->mut);
-            //printf("Ant[%d] UNLOCKED MAIN MUT COLL\n",ant->id);
-            antIsAlive = false;
         }
         printf("Ant[%d] waiting for barrier second[%d]\n",ant->id,antsDisplay->actualNumberOfAnts);
         pthread_barrier_wait(originalBarrier);

@@ -134,7 +134,7 @@ void* antSimulation(void* data) {
         }
         printf("Barrier\n");
         //Creating display
-        DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType, NULL,pdata};
+        DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType, NULL,pdata,ONLY_FIRST_ALIVE_COLL};
         //Creating 2D dynamic array of boxes , pointer of pointers
         display.box = malloc(rows*sizeof (BOX**));
         //Creating mutexes
@@ -162,6 +162,7 @@ void* antSimulation(void* data) {
                 //Initialization of box
                 boxData->x = j;
                 boxData->y = i;
+                boxData->numberOfAnts = 0;
                 switch (loadingType) {
                     case ALL_WHITE:
                     case TERMINAL_INPUT:
@@ -188,7 +189,7 @@ void* antSimulation(void* data) {
         }
         if(loadingType == FILE_INPUT_LOCAL) {
             fclose(fptrRead);
-            remove("/home/gorny/temp.txt");
+            //remove("/home/gorny/temp.txt");
         }
         if (loadingType == TERMINAL_INPUT) {
             for (int i = 0; i < rows; i++) {

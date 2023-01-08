@@ -11,20 +11,16 @@
 #include <stdbool.h>
 
 
+void printBackground(const BOX ***boxes, int rows,int columns);
 void printLog(char *str);
-char* setDimensions(char* buffer, void* data);
-LOADING_TYPE setLoadingType(char* buffer,void *data);
-LOGIC_TYPE setLogicType(char* buffer,void* data);
-int setNumberOfAnts(char* buffer,void* data);
-void getNumberRowsCollumns(FILE* file,int* rows,int* columns);
 int getChanceOfBlackBox();
-//void initBoxData(BOX* boxData, LOADING_TYPE loadingType);
 void initBoxFile(BOX* boxData, FILE* file);
 void initBoxRandom(BOX* boxData, int chanceOfBlackBox);
-void initBoxTerminalInput(DISPLAY* display);
-void chooseAntsPosition(int rows,int columns, ANT* antData);
-bool checkIfReady(char* buffer,void *data);
 
+/* Arrange the N elements of ARRAY in random order.
+   Only effective if N is much smaller than RAND_MAX;
+   if this may not be the case, use a better random
+   number generator. */
 void shuffle(int *array, size_t n);
 
 

@@ -3,14 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-
 #include <unistd.h>
-#include <fcntl.h>
-#include <stdbool.h>
-#include <netinet/in.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <pwd.h>
 
 
@@ -33,6 +27,9 @@ void printData(DATA* pdata) {
 
 void printLogServer(char *str, int i) {
 
+    //JUST FOR DEBUGG
+    return;
+
     if(i == 0) {
         printf ("\033[33;1m %s \033[0m\n",str);
     } else if (i == 1) {
@@ -42,25 +39,6 @@ void printLogServer(char *str, int i) {
     } else {
         printf ("\033[37;1m %s \033[0mm\n",str); // bold WHITE
     }
-
-
-//#define RESET   "\033[0m"
-//#define BLACK   "\033[30m"      /* Black */
-//#define RED     "\033[31m"      /* Red */
-//#define GREEN   "\033[32m"      /* Green */
-//#define YELLOW  "\033[33m"      /* Yellow */
-//#define BLUE    "\033[34m"      /* Blue */
-//#define MAGENTA "\033[35m"      /* Magenta */
-//#define CYAN    "\033[36m"      /* Cyan */
-//#define WHITE   "\033[37m"      /* White */
-//#define BOLDBLACK   "\033[1m\033[30m"      /* Bold Black */
-//#define BOLDRED     "\033[1m\033[31m"      /* Bold Red */
-//#define BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
-//#define BOLDYELLOW  "\033[1m\033[33m"      /* Bold Yellow */
-//#define BOLDBLUE    "\033[1m\033[34m"      /* Bold Blue */
-//#define BOLDMAGENTA "\033[1m\033[35m"      /* Bold Magenta */
-//#define BOLDCYAN    "\033[1m\033[36m"      /* Bold Cyan */
-//#define BOLDWHITE   "\033[1m\033[37m"      /* Bold White */
 
 }
 
@@ -78,7 +56,7 @@ void data_stop(DATA *data) {
     printLogServer("CLIENT: void data_stop(DATA *data)",1);
     pthread_mutex_lock(&data->mutex);
     data->stop = 1;
-    printf("Stop -> 1\n");
+    //printf("Stop -> 1\n");
     pthread_mutex_unlock(&data->mutex);
 }
 
@@ -121,7 +99,6 @@ char* getPWD() {
 
     return homedir;
 
-    printf("HOMEDIR %s\n",homedir);
 }
 
 

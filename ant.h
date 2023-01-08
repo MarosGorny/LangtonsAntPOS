@@ -14,6 +14,6 @@ void printAntInfo(ANT ant,const BOX ***boxes);
 BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const BOX ***boxes);
 const char* getBoxColorString(BACKGROUND_COLOR bgColor);
 const char* getDircetionString(ANT_DIRECTION antDirection);
-BACKGROUND_COLOR getBoxColorOfAnt(ANT ant,const BOX ***boxes);
+
 
 #endif //LANGTONSANTPOS_ANT_H

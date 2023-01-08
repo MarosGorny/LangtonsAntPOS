@@ -58,11 +58,13 @@ int main(int argc, char *argv[]) {
     //v hlavnom vlakne sa bude vykonavat citanie dat zo socketu
     data_readDataClient((void *)&data);
 
+    close(sock);
+
     //pockame na skoncenie zapisovacieho vlakna <pthread.h>
     pthread_join(thread, NULL);
 
     //uzavretie socketu <unistd.h>
-    close(sock);
+
 
     data_destroyClient(&data);
 

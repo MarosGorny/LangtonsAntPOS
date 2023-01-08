@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "ant.h"
-#include "display.h"
 #include "settings.h"
 
 
@@ -15,39 +14,6 @@
 #include "structuresEnums.h"
 #include "server_definition.h"
 #include "client_server_definitions.h"
-
-
-//void* serverRead(void* data) {
-//    printLog("void* serverRead(void* data)");
-//    DATA *pdata = (DATA *)data;
-//}
-
-
-//void* clientsAcceptF(void* data) {
-//    printLog("void* clientsAcceptF(void* data)");
-//    DATA *pdata = (DATA *)data;
-//    int clientSocket;
-//    int serverSocket = pdata->acceptDataForServer->serverSocket;
-//    SA_IN* client_addr = pdata->acceptDataForServer->client_addr;
-//    int* addr_size = pdata->acceptDataForServer->addr_size;
-//
-//    while(true) {
-//        int numberOfConnections = pdata->numberOfConnections;
-//
-//        if((clientSocket = accept(serverSocket, (SA *)&client_addr, (socklen_t*)&addr_size)) < 0) {
-//            printError("Error - accept");
-//        } else {
-//            pdata->sockets[numberOfConnections] = clientSocket;
-//            pdata->numberOfConnections++;
-//            printf("Client[%d] connected!\n",numberOfConnections);
-//        }
-//        pthread_mutex_lock(&pdata->mutex);
-//        if(pdata->numberOfConnections > 0) {
-//            pthread_cond_signal(pdata->condStartListeningArray);
-//        }
-//        pthread_mutex_unlock(&pdata->mutex);
-//    }
-//}
 
 
 /**
@@ -62,14 +28,12 @@ void* antSimulation(void* data) {
     // https://ezgif.com/split/ezgif-2-6771e98488.gif
 
     FILE *fptrRead;
-//
 
     bool repeat = true;
 
     printLog("void* antSimulation(void* data)");
 
     while (repeat) {
-        printLog("while (repeat)");
         DATA *pdata = (DATA *)data;
 
         int rows;
@@ -83,14 +47,12 @@ void* antSimulation(void* data) {
 
 
         pthread_mutex_lock(&pdata->mutex);
-        printLog("Before: pthread_cond_wait(&pdata->startAntSimulation,&pdata->mutex)");
         pthread_cond_wait(&pdata->startAntSimulation, &pdata->mutex);
         if(pdata->stop == 1) {
-            printf("GAME THREAD SHUTED DOWN\n");
+            pthread_mutex_unlock(&pdata->mutex);
             pthread_cond_broadcast(&pdata->updateClients);
             break;
         }
-        printLog("After: pthread_cond_wait(&pdata->startAntSimulation,&pdata->mutex)");
         rows = pdata->rows;
         columns = pdata->columns;
         numberOfAnts = pdata->numberOfAnts;
@@ -122,11 +84,6 @@ void* antSimulation(void* data) {
             columns = temp;
         }
 
-        printf("After taking data from pdata game\n");
-
-    //    if(loadingType == FILE_INPUT_LOCAL ) {
-    //        getNumberRowsCollumns(fptrRead,&rows,&columns);
-    //    }
         printf("WIDTH:%d HEIGHT:%d\n", columns, rows);
 
         pthread_mutex_t mainMut = PTHREAD_MUTEX_INITIALIZER;
@@ -135,7 +92,6 @@ void* antSimulation(void* data) {
         for (int i = 0; i < numberOfAnts; i++) {
             pthread_barrier_init(&barriers[i], NULL, i+1);
         }
-        printf("Barrier\n");
         //Creating display
         DISPLAY display = {columns, rows, numberOfAnts, barriers,&barriers[numberOfAnts-1], &mainMut, logicType, NULL,pdata,typeOfCollision};
         //Creating 2D dynamic array of boxes , pointer of pointers
@@ -149,9 +105,6 @@ void* antSimulation(void* data) {
             chanceOfBlackBox = getChanceOfBlackBox();
         }
 
-
-
-        //Initialization of boxes and creating
 
         for (int i = 0; i < rows; i++) {
             //Creating ROWS of boxes
@@ -182,7 +135,6 @@ void* antSimulation(void* data) {
                         initBoxFile(boxData,fptrRead);
                         break;
                     default:
-                        //TODO WHAT TO PRINT?
                         break;
                 }
                 //Mutex initialization and assignation to boxData
@@ -192,7 +144,6 @@ void* antSimulation(void* data) {
         }
         if(loadingType == FILE_INPUT_LOCAL) {
             fclose(fptrRead);
-            //remove("/home/gorny/temp.txt");
         }
         if (loadingType == TERMINAL_INPUT) {
             for (int i = 0; i < rows; i++) {
@@ -200,7 +151,6 @@ void* antSimulation(void* data) {
                     display.box[i][j]->color = display.dataSocket->colorOfDisplay[i][j];
                 }
             }
-            //initBoxTerminalInput(&display);
         }
 
         //pthreads of ants
@@ -211,40 +161,22 @@ void* antSimulation(void* data) {
         printBackground((const BOX ***) display.box, rows, columns);
 
         srand(time(NULL));
-//        int array[5][5] = {{0}};
-//
-//        int r = 3, c = 4, i, j, count;
-
         int tempArr[rows*columns];
-
         for (int i = 0; i < rows*columns; i++)
                 tempArr[i] = i;
-
-        printf("FIRST\n");
-        for (int i = 0; i < rows*columns; i++) {
-
-            printf("%d ",tempArr[i]);
-        }
-
         shuffle(tempArr,rows*columns);
 
-        printf("SECOND\n");
-        for (int i = 0; i < rows*columns; i++) {
-            printf("%d ",tempArr[i]);
-        }
 
-        //TODO PUTING ANTS TO DISPLAY
         for (int i = 0; i < numberOfAnts; i++) {
             antsD[i].id = i+1;
             int position = tempArr[i];
             int x = position % columns;
             int y = position / columns;
 
-            antsD[i].y = 1;//y;
-            antsD[i].x = 1;//x;
+            antsD[i].y = y;
+            antsD[i].x = x;
             antsD[i].direction = rand()%4;
 
-            //chooseAntsPosition(rows,columns,&antsD[i]);
             antsD[i].display = &display;
             pthread_create(&ants[i],NULL,antF,&antsD[i]);
             printf("Created ant[%d] X:%d Y:%d\n",i+1,antsD[i].x,antsD[i].y);
@@ -255,38 +187,33 @@ void* antSimulation(void* data) {
         int counterOfFinishedAnts = 0;
         int *dataStop = malloc(sizeof (int));
         *dataStop = 0;
-        //printf("1111111111111111111\n");
         for (int i = 0; i < numberOfAnts; i++) {
-            //printf("22222222222222222\n");
             pthread_join(ants[i],&counter);
             if(counter != NULL) {
                 counterOfFinishedAnts += 1;
                 if(*(int*)(counter) == -1) {
                     *(int*)(dataStop) = 1;
                 }
-                //counterOfFinishedAnts += *((int*)counter);
                 free(counter);
             }
 
         }
-        //printf("333333333333333333333333333333333\n");
-        printf("FINISHED ANTS %d\n",counterOfFinishedAnts);
+        //printf("Numer of finished ants %d\n",counterOfFinishedAnts);
+
         //Prints background
         printBackground((const BOX ***) display.box, rows, columns);
 
         if(true) {
-            printf("inside of file\n");
+
             //time and filename
             time_t t = time(NULL);
             struct tm tm = *localtime(&t);
             char fileNameString[50];
-            //sprintf(fileNameString, "/home/gorny/writedFile_%02dhod_%02dmin.txt", tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
-            sprintf(fileNameString, "/home/gorny/temp.txt");
+            sprintf(fileNameString, "%s/temp.txt",getPWD());
 
             //Writing to file
             FILE *fptr;
 
-            //fptr = fopen("../txtFiles/writedFile-.txt","w");
             fptr = fopen(fileNameString,"w");
 
             if(fptr == NULL) {
@@ -309,18 +236,13 @@ void* antSimulation(void* data) {
                 }
             }
             fclose(fptr);
-            printf("FILE WRITED ONTO SERVER\n");
-            //sleep(2);
-            //pthread_cond_broadcast(&pdata->updateClients);
+            printf("File saved on server\n");
+
         }
 
-        printf("111\n");
 
-
-
-        printf("PRED BROADCASTOM 1\n");
         pdata->step++;
-        printData(pdata);
+        //printData(pdata);
 
         if(pdata->stop != 1) {
             pthread_cond_broadcast(&pdata->updateClients);
@@ -328,24 +250,10 @@ void* antSimulation(void* data) {
         }
 
 
-        printf("33333\n");
-        printf("step %d, down %d\n",pdata->step,pdata->download);
-        //data_initServer(pdata, NULL);
-        //TODO SPRAVIT po stahovani suboru a tiez broadcast
-
-        printf("444\n");
-
-
-        //printf("555\n");
-        //sleep(1);
-        //printf("PRED BROADCASTOM 2\n");
-//        printData(pdata);
-//        pthread_cond_broadcast(&pdata->updateClients);
-        printf("66666\n");
 
 
         /// CLEANING AND DELETING
-        printf("Cleaning and deleting\n");
+        printf("Cleaning and deleting...\n");
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
                 //Get tempBox
@@ -381,18 +289,12 @@ void* antSimulation(void* data) {
 
 
         free(dataStop);
-        printf("END OF REPEATING SIMULATION \n");
-        printData(pdata);
-        //pthread_cond_broadcast(&pdata->updateClients);
+        //printData(pdata);
         pthread_mutex_unlock(&pdata->mutex);
-        printf("END OF REPEATING SIMULATION \n");
         if(pdata->stop == 1) {
-            printf("break\n");
             break;
         }
-        //pthread_cond_wait(&pdata->continueAntSimulation,&pdata->mutex);
     }
-    printf("END OF SIMULATION \n");
     return EXIT_SUCCESS;
 }
 
@@ -497,9 +399,9 @@ int main(int argc,char* argv[]) {
         numberOfConnections = data.numberOfConnections;
         pthread_mutex_unlock(&data.mutex);
 
-        //printf("Pred acceptom\n");
         if ((clientSocket = accept(serverSocket, (SA *) &client_addr, (socklen_t *) &addr_size)) < 0) {
             printError("Error - accept");
+            data_stop(&data);
             break;
         } else {
             printLogServer("Accepted socket",2);
@@ -517,9 +419,8 @@ int main(int argc,char* argv[]) {
             pthread_create(&threadWrite[numberOfConnections-1], NULL, data_writeDataServer, (void *) &data);
             //vytvorenie vlakna pre citanie dat od klienta
             pthread_create(&threadRead[numberOfConnections-1], NULL, data_readDataServer, (void *) &data);
-            //pthread_cond_init(&data.condStartListeningArray[numberOfConnections], NULL);
 
-            printf("Client[%d] connected(socket%d)\n", numberOfConnections, clientSocket);
+            printf("Client[%d] connected\n", numberOfConnections);
 
             if(data_isStopped(&data)) {
                 break;
@@ -555,6 +456,4 @@ int main(int argc,char* argv[]) {
     data_destroyServer(&data);
 
     return (EXIT_SUCCESS);
-
-    ////END-SERVER
 }

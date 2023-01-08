@@ -17,6 +17,7 @@ void* antF(void* arg) {
 
     printf("Starting positon\n");
     printAntInfo(*ant, (const BOX ***) antsDisplay->box );
+    printf("\n");
 
 
     while (antIsAlive) {
@@ -134,18 +135,18 @@ void* antF(void* arg) {
                     ant->direction = antsDisplay->logicType == DIRECT ? ((ant->direction + 3) % 4) : ((ant->direction + 1) % 4);
                 }
             }
-            //printf("END LOOP\n");
+
 
             if(ant->x >= antsDisplay->width || ant->y >= antsDisplay->height || ant->x < 0 || ant->y < 0) {
                 printf("Ant[%d] - last position X: %d Y:%d\n",ant->id,ant->x,ant->y);
                 printf("Ant[%d] is dead. After %d iterations\n",ant->id,counter);
                 pthread_mutex_lock(antsDisplay->mut);
-                //printf("Ant[%d] LOCKED MAIN MUT OUTSIDE\n",ant->id);
+
                 antsDisplay->actualNumberOfAnts--;
-                printf("Numbers of ants decremented by 1\n");
+
                 antsDisplay->mainBarrier = &antsDisplay->barriers[antsDisplay->actualNumberOfAnts-1];
                 pthread_mutex_unlock(antsDisplay->mut);
-                //printf("Ant[%d] UNLOCKED MAIN MUT OUTSIDE\n",ant->id);
+
                 antIsAlive = false;
             } else {
                 printAntInfo(*ant, (const BOX ***) antsDisplay->box );
@@ -155,10 +156,9 @@ void* antF(void* arg) {
                 printf("Counter is maxed\n");
                 printf("Iteration:%d\n",counter);
             }
-            //printf("Ant[%d] sleeping\n",ant->id);
-            //printf("Ant[%d] unlock\n",ant->id);
+
             pthread_mutex_unlock(antsDisplay->box[antsOrgY][antsOrgX]->mut);
-            //printf("After unlock\n");
+
 
         }
 
@@ -167,30 +167,27 @@ void* antF(void* arg) {
             printf("Ant[%d] has a collision on X:%d Y:%d\n",ant->id,ant->x,ant->y);
             printf("Ant[%d] is dead. After %d iterations\n",ant->id,counter);
             pthread_mutex_lock(antsDisplay->mut);
-            //printf("Ant[%d] LOCKED MAIN MUT COLL\n",ant->id);
+
             antsDisplay->actualNumberOfAnts--;
-            printf("Numbers of ants decremented by 1\n");
+
             antsDisplay->mainBarrier = &antsDisplay->barriers[antsDisplay->actualNumberOfAnts-1];
             pthread_mutex_unlock(antsDisplay->mut);
-            //printf("Ant[%d] UNLOCKED MAIN MUT COLL\n",ant->id);
+
             antIsAlive = false;
         }
 
-        printf("Ant[%d] waiting for barrier second[%d]\n",ant->id,antsDisplay->actualNumberOfAnts);
         pthread_barrier_wait(originalBarrier);
         printf("\n");
 
-        printf("pred waitom %d\n",pthread_mutex_lock(antsDisplay->mut));
+        pthread_mutex_lock(antsDisplay->mut);
 
         if(antsDisplay->dataSocket->continueSimulation == 0) {
             pthread_cond_wait(&antsDisplay->dataSocket->continueAntSimulation, antsDisplay->mut);
         }
-        printf("po waitom %d\n", pthread_mutex_unlock(antsDisplay->mut));
+        pthread_mutex_unlock(antsDisplay->mut);
 
         if(antsDisplay->dataSocket->stop == 1) {
-            //TODO SPRAVIT TO NA COND WAIT a mozem to aj pauzovat (pouzit aj broadcast)
-            //TODO TU MOZU VZNIKNUT MEMORY LEAKS, SPRAVIT TO LEPSIE
-            printf("TVRDY EXIT MRAVCA\n");
+            printf("HARD EXIT OF ANT\n");
             int *dataStop = malloc(sizeof (int));
             *dataStop = -11;
             pthread_exit(dataStop);

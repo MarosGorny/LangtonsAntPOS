@@ -5,13 +5,10 @@
 #ifndef LANGTONSANTPOS_STRUCTURESENUMS_H
 #define LANGTONSANTPOS_STRUCTURESENUMS_H
 
-#define BUFSIZE 4096
-#define SERVER_BACKLOG 4
-//TODO dat si pozor, lebo v server backlogu je zapocitany aj samotny server
-
 #include "pthread.h"
 #include <arpa/inet.h>
 
+#define SERVER_BACKLOG 6
 
 #define USER_LENGTH 10
 #define BUFFER_LENGTH 300
@@ -75,7 +72,6 @@ typedef struct data {
 
     pthread_cond_t startAntSimulation;
     pthread_cond_t continueAntSimulation;
-    //pthread_cond_t* condStartListeningArray;
     pthread_cond_t updateClients;
 
     int** colorOfDisplay;
@@ -88,7 +84,6 @@ typedef  struct box{
     int x;
     int y;
     int numberOfAnts;
-    //TODO LINKED LIST NA ANTS??
 
     pthread_mutex_t* mut;
 }BOX;
@@ -135,7 +130,6 @@ typedef struct ant {
     int x;
     int y;
     ANT_DIRECTION direction;
-
 
     DISPLAY* display;
 }ANT;

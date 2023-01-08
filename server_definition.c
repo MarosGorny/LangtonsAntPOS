@@ -236,7 +236,7 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 pdata->logicType = logicType;
                 printf("Changed logic type: %d\n", pdata->logicType);
 
-                if(pdata->loadingType == FILE_INPUT_LOCAL) {
+                if(pdata->loadingType == FILE_INPUT_LOCAL || pdata->loadingType == FILE_INPUT_SERVER) {
                     pdata->step++;
                 }
 
@@ -293,6 +293,14 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 strcpy(pdata->txtFileName,posActionBracketsEnd+3);
                 printf("TXT FILE PDATA %s\n",pdata->txtFileName);
 
+                if(pdata->loadingType == FILE_INPUT_SERVER) {
+                    pdata->step++;
+                } else if(pdata->loadingType == FILE_INPUT_LOCAL) {
+                    char tempFileNameString[50];
+                    sprintf(tempFileNameString, "%s/temp.txt", getPWD());
+                    remove(tempFileNameString);
+                }
+
 
 
             } else if (strcmp(target,"[FileL]") == 0) {
@@ -307,7 +315,15 @@ void makeActionNew(char* buffer, DATA *pdata) {
                 FILE *fptr;
                 //fptr = fopen("../txtFiles/writedFile-.txt","w");
 
-                if ((fptr = fopen("/home/gorny/temp.txt","a")) == NULL){
+//                char fileNameString[50];
+//                sprintf(fileNameString, "%s/%s", getPWD(),pdata->txtFileName);
+//                printf("FILENAME OPEN STRING: %s\n",fileNameString);
+
+                char tempFileNameString[50];
+                sprintf(tempFileNameString, "%s/temp.txt", getPWD());
+
+
+                if ((fptr = fopen(tempFileNameString,"a")) == NULL){
                     printf("Error! opening file");
                 }
                 if(fptr == NULL) {
@@ -316,6 +332,7 @@ void makeActionNew(char* buffer, DATA *pdata) {
                     printf("writed:%s\n",posActionBracketsEnd+2);
                     printf("%s\n",posActionBracketsEnd+3);
                     if(strcmp(posActionBracketsEnd+3,"END") == 0) {
+
                         addStep = true;
                         //fprintf(fptr,"%s", posActionBracketsEnd + 2);
                     } else {
@@ -504,6 +521,8 @@ void data_initServer(DATA *data, const char* userName) {
     data->stop = 0;
     data->step = 1;
     data->ready = 0;
+
+    memset(data->txtFileName, 0, sizeof data->txtFileName);
     data->txtFileName[99] = '\0';
     strncpy(data->txtFileName, "NULL", USER_LENGTH);
 }

@@ -48,6 +48,8 @@ void data_initClient(DATA* data, const char* userName, int socket) {
     data->step = 0;
     data->ready = 0;
     data->download = 0;
+
+    memset(data->txtFileName, 0, sizeof data->txtFileName);
     data->txtFileName[99] = '\0';
     strncpy(data->txtFileName, "NULL", USER_LENGTH);
 
@@ -793,12 +795,19 @@ void updateAllData(DATA* pdata,char* posActionEnd) {
     char* token = strtok(posActionEnd+2," ");
     printf("2\n");
     int tempNumber;
+    char* txtFile;
 
     if(token != NULL) {
         printf("3\n");
         // loop through the string to extract all other tokens
-        for (int i = 0; i < 10; i++) {
-            tempNumber = atoi(token);
+        for (int i = 0; i < 11; i++) {
+            if(i != 10) {
+                tempNumber = atoi(token);
+            }
+//            else {
+//                strcpy(txtFile,token);
+//            }
+
             //printf("SWITCH i=%d temp=%d\n",i,tempNumber);
             switch (i) {
                 case 0:
@@ -830,6 +839,11 @@ void updateAllData(DATA* pdata,char* posActionEnd) {
                     break;
                 case 9:
                     pdata->download = tempNumber;
+                    break;
+                case 10:
+                    strcpy(pdata->txtFileName,token);
+                    //pdata->txtFileName = txtFile;
+                    break;
                 default:
                     break;
             }

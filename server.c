@@ -77,6 +77,8 @@ void* antSimulation(void* data) {
         int numberOfAnts;
         LOGIC_TYPE logicType;
         LOADING_TYPE loadingType;
+        char* textFileName;
+        char fullPath[100];
 
 
         pthread_mutex_lock(&pdata->mutex);
@@ -92,22 +94,25 @@ void* antSimulation(void* data) {
         numberOfAnts = pdata->numberOfAnts;
         logicType = pdata->logicType;
         loadingType = pdata->loadingType;
+        textFileName = pdata->txtFileName;
         pthread_mutex_unlock(&pdata->mutex);
 
         if(loadingType == FILE_INPUT_LOCAL) {
             //tu sa najprv vytvori na temp.txt
+            sprintf(fullPath,"%s/temp.txt",getPWD());
+
             int temp;
-            fptrRead = fopen("/home/gorny/temp.txt","r");
+            fptrRead = fopen(fullPath,"r");
             fscanf(fptrRead,"%d", &temp);
             rows = temp;
             fscanf(fptrRead,"%d", &temp);
             columns = temp;
-        }
+        } else if(loadingType == FILE_INPUT_SERVER) {
 
-        if(loadingType == FILE_INPUT_SERVER) {
-            //TODO spravit aby to fungovalo na meno
+            sprintf(fullPath,"%s/%s",getPWD(),textFileName);
+
             int temp;
-            fptrRead = fopen("/home/gorny/temp.txt","r");
+            fptrRead = fopen(fullPath,"r");
             fscanf(fptrRead,"%d", &temp);
             rows = temp;
             fscanf(fptrRead,"%d", &temp);
@@ -167,6 +172,7 @@ void* antSimulation(void* data) {
                         break;
                     case FILE_INPUT_LOCAL:
                         initBoxFile(boxData,fptrRead);
+                        remove(fullPath);
                         break;
                     case FILE_INPUT_SERVER:
                         initBoxFile(boxData,fptrRead);

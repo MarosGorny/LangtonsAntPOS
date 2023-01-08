@@ -240,9 +240,9 @@ void* antSimulation(void* data) {
             int x = position % columns;
             int y = position / columns;
 
-            antsD[i].y = y;
-            antsD[i].x = x;
-            antsD[i].direction = NORTH;
+            antsD[i].y = 1;//y;
+            antsD[i].x = 1;//x;
+            antsD[i].direction = rand()%4;
 
             //chooseAntsPosition(rows,columns,&antsD[i]);
             antsD[i].display = &display;
@@ -402,10 +402,12 @@ int main(int argc,char* argv[]) {
     printLogServer("int main(int argc,char* argv[])",1);
     if (argc < 4) {
         printError("Sever have to be launched with following arguments: port username typeOfCollision.");
+        exit(EXIT_FAILURE);
     }
     int port = atoi(argv[1]);
     if (port <= 0) {
         printError("Port have to be integer greater than 0.");
+        exit(EXIT_FAILURE);
     }
     char *userName = argv[2];
     COLLISION typeOfCollision = atoi(argv[3]);
@@ -417,6 +419,7 @@ int main(int argc,char* argv[]) {
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
         printError("Error - socket.");
+        exit(EXIT_FAILURE);
     }
 
     //definovanie adresy servera <arpa/inet.h>
@@ -427,11 +430,13 @@ int main(int argc,char* argv[]) {
     //prepojenie adresy servera so socketom <sys/socket.h>
     if (bind(serverSocket, (SA *) &server_addr, sizeof(server_addr)) < 0) {
         printError("Error - bind.");
+        exit(EXIT_FAILURE);
     }
 
     //server bude prijimat nove spojenia cez socket serverSocket <sys/socket.h>
     if (listen(serverSocket, SERVER_BACKLOG) < 0) {
         printError("Error - listen.");
+        exit(EXIT_FAILURE);
     }
 
     printf("Waiting for connections..\n");

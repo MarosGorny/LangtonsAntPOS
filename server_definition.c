@@ -426,8 +426,6 @@ void send_fileServer(int socket,DATA* pdata) {
         char *textStart = buffer + (userNameLength + countCharAfterName);
 
 
-
-        int n = 0;
         while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), fptrRead) != NULL)  {
             usleep(300);
             if(write(socket, buffer, strlen(buffer) + 1) < 0) {

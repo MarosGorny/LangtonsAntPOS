@@ -646,14 +646,13 @@ bool writeToServer(DATA* pdata, ACTION_CODE actionCode, char* buffer, char* text
 
 }
 
-void send_file(char* buffer, FILE *pFile, int socket,DATA* pdata) {
+void send_file(char* buffer, FILE *pFile,DATA* pdata) {
     printLog("void send_file(FILE *pFile, int socket)");
     char* action = "[FileL]";
     int userNameLength = strlen(pdata->userName);
     int countCharAfterName = 2 + strlen(action);
     sprintf(buffer, "%s%s: ", pdata->userName,action);
     char *textStart = buffer + (userNameLength + countCharAfterName);
-    int n = 0;
     while (fgets(textStart, BUFFER_LENGTH - (userNameLength + countCharAfterName), pFile) != NULL)  {
         printf("FILE TO WRITE: %s\n",buffer);
         usleep(500);
